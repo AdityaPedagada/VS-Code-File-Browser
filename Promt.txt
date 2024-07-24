@@ -18,3 +18,6 @@ after search cleared file details are (undefined NaN undefined Invalid Date), su
 while down arrow is pressed suggestions are not selecting when opened, while tab changes, page is reloading to default folder it should stay where it is
 
 add the new folder and new file in white space in the context menu in empty space, icons are not rendering, add the open extension icon in the left Pannel near current folder name and new file icon, give me only changes in the file
+
+add icon to open the extension near add file in the folder name tab built in vs code
+

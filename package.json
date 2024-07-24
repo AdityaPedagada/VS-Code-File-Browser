@@ -14,9 +14,29 @@
         "commands": [
             {
                 "command": "extension.openFileBrowser",
-                "title": "Open File Browser"
+                "title": "Open File Browser",
+				"icon": {
+					"light": "media/file-browser-icon.svg",
+					"dark": "media/file-browser-icon.svg"
+				}
             }
-        ]
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "extension.openFileBrowser",
+                    "when": "view == workbench.explorer.fileView",
+                    "group": "navigation"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "extension.openFileBrowser",
+                    "when": "explorerResourceIsFolder",
+                    "group": "navigation"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
