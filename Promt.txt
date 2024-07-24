@@ -9,3 +9,7 @@ these are the files only i can browse i cant go to the any folder on  c drive or
 when i right click on folder/ file old action popup is not closing
 
 when i changing the tab open or current url is changing, right context menu is not functional, add the system context menu in context menu and it should be functional, chage the grid ui  proper grid with folder or file icon from the icon pack currently  working in vs code , show other details in grid also
+
+
+icons are not loading , list ui changed , and add the icon in list, when no result found no responce is coming when we clearing the search box files are not updating , still the icons are not showing, add a option to create new folder/file, while renaming fill the old file name
+

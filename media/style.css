@@ -89,6 +89,17 @@ button:hover {
     align-items: center;
 }
 
+.file-item.list-item .file-name {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.file-item.list-item .file-details {
+    display: flex;
+    justify-content: space-between;
+    width: 50%;
+}
+
 .file-name {
     margin-top: 5px;
     font-weight: bold;
@@ -142,4 +153,11 @@ button:hover {
 
 #path-suggestions li:hover {
     background-color: var(--vscode-list-hoverBackground);
+}
+
+.no-results {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    color: var(--vscode-disabledForeground);
 }

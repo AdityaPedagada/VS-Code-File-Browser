@@ -10,11 +10,13 @@
     let currentPath = '';
     let isGridView = true;
     let currentContextMenu = null;
+    let allFiles = [];
 
     window.addEventListener('message', event => {
         const message = event.data;
         switch (message.command) {
             case 'updateFiles':
+                allFiles = message.files;
                 updateFileView(message.files);
                 currentPath = message.path;
                 currentPathInput.value = currentPath;
@@ -30,6 +32,10 @@
 
     function updateFileView(files) {
         fileContainer.innerHTML = '';
+        if (files.length === 0) {
+            fileContainer.innerHTML = '<div class="no-results">No files found</div>';
+            return;
+        }
         const viewMethod = isGridView ? createGridItem : createListItem;
         files.forEach(file => {
             const fileElement = viewMethod(file);
@@ -76,43 +82,19 @@
             return 'codicon-folder';
         }
         // Add more file type checks here
-        switch (file.type.toLowerCase()) {
-            case '.js':
-            case '.ts':
-                return 'codicon-file-code';
-            case '.json':
-                return 'codicon-file-json';
-            case '.md':
-                return 'codicon-file-markdown';
-            case '.html':
-                return 'codicon-file-html';
-            case '.css':
-                return 'codicon-file-css';
-            case '.pdf':
-                return 'codicon-file-pdf';
-            case '.zip':
-            case '.rar':
-            case '.7z':
-                return 'codicon-file-zip';
-            default:
-                return 'codicon-file';
+        const extension = file.name.split('.').pop().toLowerCase();
+        switch (extension) {
+            case 'js': return 'codicon-file-code';
+            case 'ts': return 'codicon-file-code';
+            case 'json': return 'codicon-file-json';
+            case 'md': return 'codicon-file-markdown';
+            case 'html': return 'codicon-file-html';
+            case 'css': return 'codicon-file-css';
+            case 'pdf': return 'codicon-file-pdf';
+            case 'zip': case 'rar': case '7z': return 'codicon-file-zip';
+            default: return 'codicon-file';
         }
     }
-
-    function addFileEventListeners(fileElement, file) {
-        fileElement.addEventListener('click', () => {
-            if (file.isDirectory) {
-                vscode.postMessage({ command: 'loadDirectory', path: `${currentPath}/${file.name}` });
-            } else {
-                vscode.postMessage({ command: 'performFileAction', action: 'open', path: `${currentPath}/${file.name}` });
-            }
-        });
-
-        fileElement.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showContextMenu(e, file);
-        });
-    ``    }
 
     function showContextMenu(e, file) {
         e.preventDefault();
@@ -128,11 +110,15 @@
         contextMenu.style.top = `${e.pageY}px`;
 
         const actions = ['Open', 'Copy', 'Cut', 'Paste', 'Delete', 'Rename', 'Properties'];
+        if (file.isDirectory) {
+            actions.push('New Folder', 'New File');
+        }
         actions.forEach(action => {
             const actionItem = document.createElement('div');
             actionItem.textContent = action;
             actionItem.addEventListener('click', () => {
-                vscode.postMessage({ command: 'performFileAction', action: action.toLowerCase(), path: `${currentPath}/${file.name}` });
+                let command = action.toLowerCase().replace(' ', '');
+                vscode.postMessage({ command: 'performFileAction', action: command, path: `${currentPath}/${file.name}` });
                 document.body.removeChild(contextMenu);
                 currentContextMenu = null;
             });
@@ -154,6 +140,19 @@
             document.addEventListener('click', removeContextMenu);
         }, 0);
     }
+
+    searchBox.addEventListener('input', () => {
+        const query = searchBox.value.toLowerCase();
+        if (query === '') {
+            updateFileView(allFiles);
+        } else {
+            const filteredFiles = allFiles.filter(file => 
+                file.name.toLowerCase().includes(query)
+            );
+            updateFileView(filteredFiles);
+        }
+    });
+
 
     function addFileEventListeners(fileElement, file) {
         fileElement.addEventListener('click', () => {
@@ -248,6 +247,7 @@
     });
 
     window.addEventListener('focus', () => {
+        vscode.window.showErrorMessage(`Focused now again..`);
         vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 

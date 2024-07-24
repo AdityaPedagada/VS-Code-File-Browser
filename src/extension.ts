@@ -176,11 +176,31 @@ class FileBrowserPanel {
                 }
                 break;
             case 'rename':
-                const newName = await vscode.window.showInputBox({ prompt: 'Enter new name' });
-                if (newName) {
+                const oldName = path.basename(filePath);
+                const newName = await vscode.window.showInputBox({ 
+                    prompt: 'Enter new name', 
+                    value: oldName 
+                });
+                if (newName && newName !== oldName) {
                     const newPath = path.join(path.dirname(filePath), newName);
                     await fs.promises.rename(filePath, newPath);
                     await this._loadDirectory(path.dirname(filePath));
+                }
+                break;
+            case 'newFolder':
+                const folderName = await vscode.window.showInputBox({ prompt: 'Enter folder name' });
+                if (folderName) {
+                    const newFolderPath = path.join(filePath, folderName);
+                    await fs.promises.mkdir(newFolderPath);
+                    await this._loadDirectory(filePath);
+                }
+                break;
+            case 'newFile':
+                const fileName = await vscode.window.showInputBox({ prompt: 'Enter file name' });
+                if (fileName) {
+                    const newFilePath = path.join(filePath, fileName);
+                    await fs.promises.writeFile(newFilePath, '');
+                    await this._loadDirectory(filePath);
                 }
                 break;
             case 'copy':
