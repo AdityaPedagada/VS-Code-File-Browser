@@ -1,0 +1,126 @@
+body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    margin: 0;
+    padding: 0;
+}
+
+#toolbar {
+    display: flex;
+    padding: 10px;
+    background-color: var(--vscode-editor-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+#current-path {
+    flex-grow: 1;
+    margin-right: 10px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 5px;
+}
+
+button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+#file-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 20px;
+}
+
+.file-item {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    padding: 10px;
+    margin: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.file-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-item.list-view {
+    width: calc(100% - 10px);
+    display: flex;
+    align-items: center;
+}
+
+.file-name {
+    margin-left: 5px;
+    font-weight: bold;
+}
+
+.file-details {
+    font-size: 0.8em;
+    color: var(--vscode-descriptionForeground);
+    margin-left: auto;
+}
+
+.context-menu {
+    position: absolute;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+    padding: 5px 0;
+    z-index: 1000;
+}
+
+.context-menu div {
+    padding: 5px 20px;
+    cursor: pointer;
+}
+
+.context-menu div:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
+
+#search-box {
+    margin-left: 10px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 5px;
+}
+
+.codicon {
+    font-size: 16px;
+    margin-right: 5px;
+}
+
+#path-suggestions {
+    position: absolute;
+    background-color: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+#path-suggestions li {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#path-suggestions li:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
