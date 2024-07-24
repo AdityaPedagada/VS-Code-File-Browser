@@ -164,10 +164,19 @@ class FileBrowserPanel {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const resolvedPath = this._resolvePath(partialPath);
-                const dirPath = path.dirname(resolvedPath);
+                let dirPath;
+                let baseName;
+                if (resolvedPath.endsWith(path.sep)) {
+                    dirPath = resolvedPath;
+                    baseName = '';
+                }
+                else {
+                    dirPath = path.dirname(resolvedPath);
+                    baseName = path.basename(resolvedPath).toLowerCase();
+                }
                 const files = yield fs.promises.readdir(dirPath, { withFileTypes: true });
                 return files
-                    .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(resolvedPath).toLowerCase()))
+                    .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(baseName))
                     .map(file => path.join(dirPath, file.name, path.sep));
             }
             catch (error) {
