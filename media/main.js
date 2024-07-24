@@ -11,6 +11,8 @@
     let isGridView = true;
     let currentContextMenu = null;
     let allFiles = [];
+    let currentSuggestionIndex = -1;
+    let suggestionList = null;
 
     window.addEventListener('message', event => {
         const message = event.data;
@@ -20,6 +22,7 @@
                 updateFileView(message.files);
                 currentPath = message.path;
                 currentPathInput.value = currentPath;
+                saveState();
                 break;
             case 'updateSuggestions':
                 updateSuggestions(message.suggestions);
@@ -193,8 +196,30 @@
         vscode.postMessage({ command: 'getDirectorySuggestions', path: currentPathInput.value });
     });
 
+    currentPathInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (suggestionList) {
+                suggestionList.innerHTML = '';
+            }
+        }, 200);
+    });
+
+    function saveState() {
+        vscode.setState({ currentPath: currentPath });
+    }
+
+    function restoreState() {
+        const state = vscode.getState();
+        if (state && state.currentPath) {
+            currentPath = state.currentPath;
+            vscode.postMessage({ command: 'loadDirectory', path: currentPath });
+        } else {
+            vscode.postMessage({ command: 'loadDirectory', path: '.' });
+        }
+    }
+
     function updateSuggestions(suggestions) {
-        let suggestionList = document.getElementById('path-suggestions');
+        suggestionList = document.getElementById('path-suggestions');
         if (!suggestionList) {
             suggestionList = document.createElement('ul');
             suggestionList.id = 'path-suggestions';
@@ -202,17 +227,64 @@
         }
         
         suggestionList.innerHTML = '';
-        suggestions.forEach(suggestion => {
+        suggestions.forEach((suggestion, index) => {
             const li = document.createElement('li');
             li.textContent = suggestion;
+            li.setAttribute('data-index', index);
             li.addEventListener('click', () => {
-                currentPathInput.value = suggestion;
-                suggestionList.innerHTML = '';
-                vscode.postMessage({ command: 'loadDirectory', path: suggestion });
+                selectSuggestion(index);
             });
             suggestionList.appendChild(li);
         });
+        
+        currentSuggestionIndex = -1;
     }
+
+    function selectSuggestion(index) {
+        const suggestions = suggestionList.getElementsByTagName('li');
+        if (index >= 0 && index < suggestions.length) {
+            currentSuggestionIndex = index;
+            currentPathInput.value = suggestions[index].textContent;
+            highlightSuggestion();
+            suggestionList.innerHTML = '';
+            vscode.postMessage({ command: 'loadDirectory', path: currentPathInput.value });
+        }
+    }
+
+    function highlightSuggestion() {
+        const suggestions = suggestionList.getElementsByTagName('li');
+        for (let i = 0; i < suggestions.length; i++) {
+            suggestions[i].classList.remove('selected');
+        }
+        if (currentSuggestionIndex >= 0 && currentSuggestionIndex < suggestions.length) {
+            suggestions[currentSuggestionIndex].classList.add('selected');
+            suggestions[currentSuggestionIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    currentPathInput.addEventListener('keydown', (e) => {
+        if (suggestionList && suggestionList.children.length > 0) {
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestionList.children.length - 1);
+                    highlightSuggestion();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+                    highlightSuggestion();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    selectSuggestion(currentSuggestionIndex);
+                    break;
+                case 'Escape':
+                    suggestionList.innerHTML = '';
+                    break;
+            }
+        }
+    });
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -262,4 +334,6 @@
 
     // Load initial directory (current workspace folder or home directory)
     vscode.postMessage({ command: 'loadDirectory', path: '.' });
+
+    restoreState();
 })();

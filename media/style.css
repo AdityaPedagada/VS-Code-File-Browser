@@ -156,6 +156,11 @@ button:hover {
     background-color: var(--vscode-list-hoverBackground);
 }
 
+#path-suggestions li.selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
 .no-results {
     width: 100%;
     text-align: center;
