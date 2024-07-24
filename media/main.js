@@ -171,6 +171,10 @@
         });
     }
 
+    document.getElementById('new-file').addEventListener('click', () => {
+        vscode.postMessage({ command: 'performFileAction', action: 'newFile', path: currentPath });
+    });
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (currentContextMenu) {
@@ -261,6 +265,54 @@
             suggestions[currentSuggestionIndex].scrollIntoView({ block: 'nearest' });
         }
     }
+
+    function showEmptySpaceContextMenu(e) {
+        e.preventDefault();
+        
+        if (currentContextMenu) {
+            document.body.removeChild(currentContextMenu);
+        }
+    
+        const contextMenu = document.createElement('div');
+        contextMenu.className = 'context-menu';
+        contextMenu.style.position = 'absolute';
+        contextMenu.style.left = `${e.pageX}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+    
+        const actions = ['New Folder', 'New File'];
+        actions.forEach(action => {
+            const actionItem = document.createElement('div');
+            actionItem.textContent = action;
+            actionItem.addEventListener('click', () => {
+                let command = action.toLowerCase().replace(' ', '');
+                vscode.postMessage({ command: 'performFileAction', action: command, path: currentPath });
+                document.body.removeChild(contextMenu);
+                currentContextMenu = null;
+            });
+            contextMenu.appendChild(actionItem);
+        });
+    
+        document.body.appendChild(contextMenu);
+        currentContextMenu = contextMenu;
+    
+        function removeContextMenu(event) {
+            if (!contextMenu.contains(event.target)) {
+                document.body.removeChild(contextMenu);
+                currentContextMenu = null;
+                document.removeEventListener('click', removeContextMenu);
+            }
+        }
+    
+        setTimeout(() => {
+            document.addEventListener('click', removeContextMenu);
+        }, 0);
+    }
+
+    fileContainer.addEventListener('contextmenu', (e) => {
+        if (e.target === fileContainer) {
+            showEmptySpaceContextMenu(e);
+        }
+    });
 
     currentPathInput.addEventListener('keydown', (e) => {
         if (suggestionList && suggestionList.children.length > 0) {

@@ -95,11 +95,12 @@ class FileBrowserPanel {
         </head>
         <body>
             <div id="toolbar">
-                <button id="back-button" class="codicon codicon-arrow-left"></button>
-                <input type="text" id="current-path" placeholder="Enter path...">
-                <button id="go-button">Go</button>
-                <input type="text" id="search-box" placeholder="Search files...">
-                <button id="toggle-view" class="codicon codicon-list-flat"></button>
+            <button id="back-button" class="codicon codicon-arrow-left"><-</button>
+            <input type="text" id="current-path" placeholder="Enter path...">
+            <button id="go-button">Go</button>
+            <input type="text" id="search-box" placeholder="Search files...">
+            <button id="new-file" class="codicon codicon-new-file">+</button>
+            <button id="toggle-view" class="codicon codicon-list-flat">|-</button>
             </div>
             <div id="file-container"></div>
             <script src="${scriptUri}"></script>
