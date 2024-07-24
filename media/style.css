@@ -39,6 +39,22 @@ button:hover {
     background-color: var(--vscode-button-hoverBackground);
 }
 
+#search-box {
+    margin-left: 10px;
+    margin-right: 10px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 5px;
+}
+
+.codicon {
+    font-family: codicon;
+    font-size: 16px;
+    line-height: 1;
+    margin-right: 5px;
+}
+
 #file-container {
     display: flex;
     flex-wrap: wrap;
@@ -59,21 +75,30 @@ button:hover {
     background-color: var(--vscode-list-hoverBackground);
 }
 
-.file-item.list-view {
-    width: calc(100% - 10px);
+.file-item.grid-item {
+    width: calc(20% - 20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.file-item.list-item {
+    width: calc(100% - 20px);
     display: flex;
     align-items: center;
 }
 
 .file-name {
-    margin-left: 5px;
+    margin-top: 5px;
     font-weight: bold;
+    word-break: break-all;
 }
 
 .file-details {
     font-size: 0.8em;
     color: var(--vscode-descriptionForeground);
-    margin-left: auto;
+    margin-top: 5px;
 }
 
 .context-menu {
@@ -93,21 +118,6 @@ button:hover {
 .context-menu div:hover {
     background-color: var(--vscode-menu-selectionBackground);
     color: var(--vscode-menu-selectionForeground);
-}
-
-#search-box {
-    margin-left: 10px;
-    margin-right: 10px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border);
-    padding: 5px;
-}
-
-.codicon {
-    font-family: codicon;
-    font-size: 16px;
-    line-height: 1;
 }
 
 #path-suggestions {

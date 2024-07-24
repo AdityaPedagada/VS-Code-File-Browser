@@ -37,6 +37,7 @@ const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+const child_process_1 = require("child_process");
 function activate(context) {
     console.log('File Browser Extension is now active!');
     let disposable = vscode.commands.registerCommand('extension.openFileBrowser', () => {
@@ -60,6 +61,7 @@ class FileBrowserPanel {
     }
     constructor(panel, extensionUri) {
         this._disposables = [];
+        this._cutPath = '';
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._update();
@@ -192,9 +194,69 @@ class FileBrowserPanel {
                         yield this._loadDirectory(path.dirname(filePath));
                     }
                     break;
-                // Add more actions as needed
+                case 'rename':
+                    const newName = yield vscode.window.showInputBox({ prompt: 'Enter new name' });
+                    if (newName) {
+                        const newPath = path.join(path.dirname(filePath), newName);
+                        yield fs.promises.rename(filePath, newPath);
+                        yield this._loadDirectory(path.dirname(filePath));
+                    }
+                    break;
+                case 'copy':
+                case 'cut':
+                    vscode.env.clipboard.writeText(filePath);
+                    if (action === 'cut') {
+                        this._cutPath = filePath;
+                    }
+                    break;
+                case 'paste':
+                    if (this._cutPath) {
+                        const destPath = path.join(filePath, path.basename(this._cutPath));
+                        yield fs.promises.rename(this._cutPath, destPath);
+                        this._cutPath = '';
+                    }
+                    else {
+                        const clipboardText = yield vscode.env.clipboard.readText();
+                        if (clipboardText) {
+                            const destPath = path.join(filePath, path.basename(clipboardText));
+                            yield fs.promises.copyFile(clipboardText, destPath);
+                        }
+                    }
+                    yield this._loadDirectory(filePath);
+                    break;
+                case 'properties':
+                    this._showFileProperties(filePath);
+                    break;
+                default:
+                    vscode.window.showErrorMessage(`Unsupported action: ${action}`);
             }
         });
+    }
+    _showFileProperties(filePath) {
+        if (process.platform === 'win32') {
+            (0, child_process_1.exec)(`explorer /select,"${filePath}"`);
+        }
+        else if (process.platform === 'darwin') {
+            (0, child_process_1.exec)(`open -R "${filePath}"`);
+        }
+        else {
+            // For Linux, we'll show a simple properties dialog
+            fs.stat(filePath, (err, stats) => {
+                if (err) {
+                    vscode.window.showErrorMessage(`Error getting file properties: ${err.message}`);
+                    return;
+                }
+                const properties = `
+                    Name: ${path.basename(filePath)}
+                    Path: ${filePath}
+                    Size: ${stats.size} bytes
+                    Created: ${stats.birthtime}
+                    Modified: ${stats.mtime}
+                    Permissions: ${stats.mode}
+                `;
+                vscode.window.showInformationMessage(properties, { modal: true });
+            });
+        }
     }
     _searchFiles(directoryPath, query) {
         return __awaiter(this, void 0, void 0, function* () {

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { exec } from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Browser Extension is now active!');
@@ -174,7 +175,67 @@ class FileBrowserPanel {
                     await this._loadDirectory(path.dirname(filePath));
                 }
                 break;
-            // Add more actions as needed
+            case 'rename':
+                const newName = await vscode.window.showInputBox({ prompt: 'Enter new name' });
+                if (newName) {
+                    const newPath = path.join(path.dirname(filePath), newName);
+                    await fs.promises.rename(filePath, newPath);
+                    await this._loadDirectory(path.dirname(filePath));
+                }
+                break;
+            case 'copy':
+            case 'cut':
+                vscode.env.clipboard.writeText(filePath);
+                if (action === 'cut') {
+                    this._cutPath = filePath;
+                }
+                break;
+            case 'paste':
+                if (this._cutPath) {
+                    const destPath = path.join(filePath, path.basename(this._cutPath));
+                    await fs.promises.rename(this._cutPath, destPath);
+                    this._cutPath = '';
+                } else {
+                    const clipboardText = await vscode.env.clipboard.readText();
+                    if (clipboardText) {
+                        const destPath = path.join(filePath, path.basename(clipboardText));
+                        await fs.promises.copyFile(clipboardText, destPath);
+                    }
+                }
+                await this._loadDirectory(filePath);
+                break;
+            case 'properties':
+                this._showFileProperties(filePath);
+                break;
+            default:
+                vscode.window.showErrorMessage(`Unsupported action: ${action}`);
+        }
+    }
+
+    private _cutPath: string = '';
+
+    private _showFileProperties(filePath: string) {
+        if (process.platform === 'win32') {
+            exec(`explorer /select,"${filePath}"`);
+        } else if (process.platform === 'darwin') {
+            exec(`open -R "${filePath}"`);
+        } else {
+            // For Linux, we'll show a simple properties dialog
+            fs.stat(filePath, (err, stats) => {
+                if (err) {
+                    vscode.window.showErrorMessage(`Error getting file properties: ${err.message}`);
+                    return;
+                }
+                const properties = `
+                    Name: ${path.basename(filePath)}
+                    Path: ${filePath}
+                    Size: ${stats.size} bytes
+                    Created: ${stats.birthtime}
+                    Modified: ${stats.mtime}
+                    Permissions: ${stats.mode}
+                `;
+                vscode.window.showInformationMessage(properties, { modal: true });
+            });
         }
     }
 

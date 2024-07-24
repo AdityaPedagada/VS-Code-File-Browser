@@ -9,6 +9,7 @@
 
     let currentPath = '';
     let isGridView = true;
+    let currentContextMenu = null;
 
     window.addEventListener('message', event => {
         const message = event.data;
@@ -38,20 +39,10 @@
 
     function createGridItem(file) {
         const fileElement = document.createElement('div');
-        fileElement.className = 'file-item';
+        fileElement.className = 'file-item grid-item';
+        const iconClass = getFileIconClass(file);
         fileElement.innerHTML = `
-            <i class="codicon ${file.isDirectory ? 'codicon-folder' : 'codicon-file'}"></i>
-            <span class="file-name">${file.name}</span>
-        `;
-        addFileEventListeners(fileElement, file);
-        return fileElement;
-    }
-
-    function createListItem(file) {
-        const fileElement = document.createElement('div');
-        fileElement.className = 'file-item list-view';
-        fileElement.innerHTML = `
-            <i class="codicon ${file.isDirectory ? 'codicon-folder' : 'codicon-file'}"></i>
+            <i class="codicon ${iconClass}"></i>
             <span class="file-name">${file.name}</span>
             <span class="file-details">
                 <span class="file-type">${file.type}</span>
@@ -61,6 +52,51 @@
         `;
         addFileEventListeners(fileElement, file);
         return fileElement;
+    }
+
+    function createListItem(file) {
+        const fileElement = document.createElement('div');
+        fileElement.className = 'file-item list-item';
+        const iconClass = getFileIconClass(file);
+        fileElement.innerHTML = `
+            <i class="codicon ${iconClass}"></i>
+            <span class="file-name">${file.name}</span>
+            <span class="file-details">
+                <span class="file-type">${file.type}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+                <span class="file-date">${new Date(file.lastModified).toLocaleString()}</span>
+            </span>
+        `;
+        addFileEventListeners(fileElement, file);
+        return fileElement;
+    }
+
+    function getFileIconClass(file) {
+        if (file.isDirectory) {
+            return 'codicon-folder';
+        }
+        // Add more file type checks here
+        switch (file.type.toLowerCase()) {
+            case '.js':
+            case '.ts':
+                return 'codicon-file-code';
+            case '.json':
+                return 'codicon-file-json';
+            case '.md':
+                return 'codicon-file-markdown';
+            case '.html':
+                return 'codicon-file-html';
+            case '.css':
+                return 'codicon-file-css';
+            case '.pdf':
+                return 'codicon-file-pdf';
+            case '.zip':
+            case '.rar':
+            case '.7z':
+                return 'codicon-file-zip';
+            default:
+                return 'codicon-file';
+        }
     }
 
     function addFileEventListeners(fileElement, file) {
@@ -76,14 +112,11 @@
             e.preventDefault();
             showContextMenu(e, file);
         });
-    }
-    
-    let currentContextMenu = null;
+    ``    }
 
     function showContextMenu(e, file) {
         e.preventDefault();
         
-        // Close the current context menu if it exists
         if (currentContextMenu) {
             document.body.removeChild(currentContextMenu);
         }
@@ -94,7 +127,7 @@
         contextMenu.style.left = `${e.pageX}px`;
         contextMenu.style.top = `${e.pageY}px`;
 
-        const actions = ['Open', 'Delete', 'Rename', 'Copy', 'Cut', 'Paste'];
+        const actions = ['Open', 'Copy', 'Cut', 'Paste', 'Delete', 'Rename', 'Properties'];
         actions.forEach(action => {
             const actionItem = document.createElement('div');
             actionItem.textContent = action;
@@ -109,7 +142,6 @@
         document.body.appendChild(contextMenu);
         currentContextMenu = contextMenu;
 
-        // Close the context menu when clicking outside
         function removeContextMenu(event) {
             if (!contextMenu.contains(event.target)) {
                 document.body.removeChild(contextMenu);
@@ -118,7 +150,6 @@
             }
         }
 
-        // Use setTimeout to avoid immediate triggering
         setTimeout(() => {
             document.addEventListener('click', removeContextMenu);
         }, 0);
@@ -214,6 +245,10 @@
 
     searchBox.addEventListener('input', () => {
         vscode.postMessage({ command: 'searchFiles', path: currentPath, query: searchBox.value });
+    });
+
+    window.addEventListener('focus', () => {
+        vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 
     // Load initial directory (current workspace folder or home directory)
