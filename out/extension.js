@@ -167,7 +167,7 @@ class FileBrowserPanel {
                 const files = yield fs.promises.readdir(dirPath, { withFileTypes: true });
                 return files
                     .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(resolvedPath).toLowerCase()))
-                    .map(file => path.join(dirPath, file.name));
+                    .map(file => path.join(dirPath, file.name, path.sep));
             }
             catch (error) {
                 if (error instanceof Error) {
@@ -282,13 +282,21 @@ class FileBrowserPanel {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const files = yield fs.promises.readdir(directoryPath, { withFileTypes: true });
-                return files
+                const searchResults = files
                     .filter(file => file.name.toLowerCase().includes(query.toLowerCase()))
-                    .map(file => ({
-                    name: file.name,
-                    isDirectory: file.isDirectory(),
-                    path: path.join(directoryPath, file.name)
-                }));
+                    .map(file => {
+                    const filePath = path.join(directoryPath, file.name);
+                    const stats = fs.statSync(filePath);
+                    return {
+                        name: file.name,
+                        isDirectory: file.isDirectory(),
+                        path: filePath,
+                        lastModified: stats.mtime.toISOString(),
+                        type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
+                        size: stats.size
+                    };
+                });
+                return searchResults;
             }
             catch (error) {
                 if (error instanceof Error) {

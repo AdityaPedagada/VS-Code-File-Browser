@@ -151,7 +151,7 @@ class FileBrowserPanel {
             const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
             return files
                 .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(resolvedPath).toLowerCase()))
-                .map(file => path.join(dirPath, file.name));
+                .map(file => path.join(dirPath, file.name, path.sep));
         } catch (error) {
             if (error instanceof Error) {
                 console.error(`Error getting directory suggestions: ${error.message}`);
@@ -262,14 +262,22 @@ class FileBrowserPanel {
     private async _searchFiles(directoryPath: string, query: string) {
         try {
             const files = await fs.promises.readdir(directoryPath, { withFileTypes: true });
-            return files
+            const searchResults = files
                 .filter(file => file.name.toLowerCase().includes(query.toLowerCase()))
-                .map(file => ({
-                    name: file.name,
-                    isDirectory: file.isDirectory(),
-                    path: path.join(directoryPath, file.name)
-                }));
-        } catch  (error: unknown) {
+                .map(file => {
+                    const filePath = path.join(directoryPath, file.name);
+                    const stats = fs.statSync(filePath);
+                    return {
+                        name: file.name,
+                        isDirectory: file.isDirectory(),
+                        path: filePath,
+                        lastModified: stats.mtime.toISOString(),
+                        type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
+                        size: stats.size
+                    };
+                });
+            return searchResults;
+        } catch (error: unknown) {
             if (error instanceof Error) {
                 vscode.window.showErrorMessage(`Error searching files: ${error.message}`);
                 console.error(`Error searching files: ${error.message}`);

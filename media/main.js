@@ -228,7 +228,11 @@
     });
 
     goButton.addEventListener('click', () => {
-        vscode.postMessage({ command: 'loadDirectory', path: currentPathInput.value });
+        let path = currentPathInput.value;
+        if (!path.endsWith(path.sep)) {
+            path += path.sep;
+        }
+        vscode.postMessage({ command: 'loadDirectory', path: path });
     });
 
     backButton.addEventListener('click', () => {
@@ -243,7 +247,12 @@
     });
 
     searchBox.addEventListener('input', () => {
-        vscode.postMessage({ command: 'searchFiles', path: currentPath, query: searchBox.value });
+        const query = searchBox.value.trim();
+        if (query === '') {
+            updateFileView(allFiles);
+        } else {
+            vscode.postMessage({ command: 'searchFiles', path: currentPath, query: query });
+        }
     });
 
     window.addEventListener('focus', () => {

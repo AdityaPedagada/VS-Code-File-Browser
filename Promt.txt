@@ -13,3 +13,5 @@ when i changing the tab open or current url is changing, right context menu is n
 
 icons are not loading , list ui changed , and add the icon in list, when no result found no responce is coming when we clearing the search box files are not updating , still the icons are not showing, add a option to create new folder/file, while renaming fill the old file name
 
+after search cleared file details are (undefined NaN undefined Invalid Date), suggestions are appearing middle of the screen or in bottom , show the suggestions in the child folder when we put the slash (\) at the end of the URL, always put the slash at the end of the URL, suggestions  are not hiding when we leave the URl text box
+

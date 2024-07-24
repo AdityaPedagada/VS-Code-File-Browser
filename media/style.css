@@ -144,6 +144,7 @@ button:hover {
     max-height: 200px;
     overflow-y: auto;
     z-index: 1000;
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
 }
 
 #path-suggestions li {
@@ -160,4 +161,8 @@ button:hover {
     text-align: center;
     padding: 20px;
     color: var(--vscode-disabledForeground);
+}
+
+#toolbar {
+    position: relative;
 }
