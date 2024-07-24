@@ -77,8 +77,17 @@
             showContextMenu(e, file);
         });
     }
+    
+    let currentContextMenu = null;
 
     function showContextMenu(e, file) {
+        e.preventDefault();
+        
+        // Close the current context menu if it exists
+        if (currentContextMenu) {
+            document.body.removeChild(currentContextMenu);
+        }
+
         const contextMenu = document.createElement('div');
         contextMenu.className = 'context-menu';
         contextMenu.style.position = 'absolute';
@@ -92,19 +101,55 @@
             actionItem.addEventListener('click', () => {
                 vscode.postMessage({ command: 'performFileAction', action: action.toLowerCase(), path: `${currentPath}/${file.name}` });
                 document.body.removeChild(contextMenu);
+                currentContextMenu = null;
             });
             contextMenu.appendChild(actionItem);
         });
 
         document.body.appendChild(contextMenu);
+        currentContextMenu = contextMenu;
 
-        document.addEventListener('click', function removeContextMenu() {
-            if (document.body.contains(contextMenu)) {
+        // Close the context menu when clicking outside
+        function removeContextMenu(event) {
+            if (!contextMenu.contains(event.target)) {
                 document.body.removeChild(contextMenu);
+                currentContextMenu = null;
+                document.removeEventListener('click', removeContextMenu);
             }
-            document.removeEventListener('click', removeContextMenu);
+        }
+
+        // Use setTimeout to avoid immediate triggering
+        setTimeout(() => {
+            document.addEventListener('click', removeContextMenu);
+        }, 0);
+    }
+
+    function addFileEventListeners(fileElement, file) {
+        fileElement.addEventListener('click', () => {
+            if (file.isDirectory) {
+                vscode.postMessage({ command: 'loadDirectory', path: `${currentPath}/${file.name}` });
+            } else {
+                vscode.postMessage({ command: 'performFileAction', action: 'open', path: `${currentPath}/${file.name}` });
+            }
+        });
+
+        fileElement.addEventListener('contextmenu', (e) => {
+            showContextMenu(e, file);
         });
     }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (currentContextMenu) {
+                document.body.removeChild(currentContextMenu);
+                currentContextMenu = null;
+            }
+            const suggestionList = document.getElementById('path-suggestions');
+            if (suggestionList) {
+                suggestionList.innerHTML = '';
+            }
+        }
+    });
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';

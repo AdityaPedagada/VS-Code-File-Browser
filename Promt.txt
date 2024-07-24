@@ -4,3 +4,8 @@ can you create new vs code extension  to browse files in the PC or remort ssh cu
 make sure it supports the dark mode and URL path is editable, and it should be in current directory and show me the suggestions while editing, give the toggle button to switch between the list and grid , and add all the possible actions on right click on file or folder , add back button near url bar to go to parrent folder and add the search text box to find the file or folder by name in the current folder
 
 these are the files only i can browse i cant go to the any folder on  c drive or d drive or any other folder on computer there is no icon on back and list/grid button, escape is not working on action menu or suggestions, there is no space between the search bar and list/grid button, suggestions are overlapping the URL bar
+
+
+when i right click on folder/ file old action popup is not closing
+
+when i changing the tab open or current url is changing, right context menu is not functional, add the system context menu in context menu and it should be functional, chage the grid ui  proper grid with folder or file icon from the icon pack currently  working in vs code , show other details in grid also
