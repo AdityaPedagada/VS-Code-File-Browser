@@ -119,11 +119,11 @@
     });
 
     function updateSuggestions(suggestions) {
-        const suggestionList = document.getElementById('path-suggestions');
+        let suggestionList = document.getElementById('path-suggestions');
         if (!suggestionList) {
-            const newSuggestionList = document.createElement('ul');
-            newSuggestionList.id = 'path-suggestions';
-            currentPathInput.parentNode.insertBefore(newSuggestionList, currentPathInput.nextSibling);
+            suggestionList = document.createElement('ul');
+            suggestionList.id = 'path-suggestions';
+            currentPathInput.parentNode.insertBefore(suggestionList, currentPathInput.nextSibling);
         }
         
         suggestionList.innerHTML = '';
@@ -139,12 +139,25 @@
         });
     }
 
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const contextMenu = document.querySelector('.context-menu');
+            if (contextMenu) {
+                contextMenu.remove();
+            }
+            const suggestionList = document.getElementById('path-suggestions');
+            if (suggestionList) {
+                suggestionList.innerHTML = '';
+            }
+        }
+    });
+
     goButton.addEventListener('click', () => {
         vscode.postMessage({ command: 'loadDirectory', path: currentPathInput.value });
     });
 
     backButton.addEventListener('click', () => {
-        const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+        const parentPath = currentPath.split(/[/\\]/).slice(0, -1).join('/') || '/';
         vscode.postMessage({ command: 'loadDirectory', path: parentPath });
     });
 
@@ -158,6 +171,6 @@
         vscode.postMessage({ command: 'searchFiles', path: currentPath, query: searchBox.value });
     });
 
-    // Load initial directory (current workspace folder)
+    // Load initial directory (current workspace folder or home directory)
     vscode.postMessage({ command: 'loadDirectory', path: '.' });
 })();

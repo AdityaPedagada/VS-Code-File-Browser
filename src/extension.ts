@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Browser Extension is now active!');
@@ -107,9 +108,10 @@ class FileBrowserPanel {
 
     private async _loadDirectory(directoryPath: string) {
         try {
-            const files = await fs.promises.readdir(directoryPath, { withFileTypes: true });
+            const resolvedPath = this._resolvePath(directoryPath);
+            const files = await fs.promises.readdir(resolvedPath, { withFileTypes: true });
             const fileDetails = await Promise.all(files.map(async file => {
-                const filePath = path.join(directoryPath, file.name);
+                const filePath = path.join(resolvedPath, file.name);
                 const stats = await fs.promises.stat(filePath);
                 return {
                     name: file.name,
@@ -120,24 +122,36 @@ class FileBrowserPanel {
                 };
             }));
 
-            this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: directoryPath });
-        } catch (error: unknown) {
+            this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: resolvedPath });
+        } catch (error) {
             if (error instanceof Error) {
-                vscode.window.showErrorMessage(`Error getting directory suggestions: ${error.message}`);
+                vscode.window.showErrorMessage(`Error loading directory: ${error.message}`);
             } else {
                 vscode.window.showErrorMessage(`Error loading directory: An unknown error occurred`);
             }
         }
     }
 
+    private _resolvePath(inputPath: string): string {
+        if (path.isAbsolute(inputPath)) {
+            return inputPath;
+        }
+        if (inputPath === '.' || inputPath === './') {
+            return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || os.homedir();
+        }
+        const currentDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || os.homedir();
+        return path.resolve(currentDir, inputPath);
+    }
+
     private async _getDirectorySuggestions(partialPath: string) {
         try {
-            const dirPath = path.dirname(partialPath);
+            const resolvedPath = this._resolvePath(partialPath);
+            const dirPath = path.dirname(resolvedPath);
             const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
             return files
-                .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(partialPath).toLowerCase()))
+                .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(resolvedPath).toLowerCase()))
                 .map(file => path.join(dirPath, file.name));
-        } catch (error: unknown) {
+        } catch (error) {
             if (error instanceof Error) {
                 console.error(`Error getting directory suggestions: ${error.message}`);
             } else {

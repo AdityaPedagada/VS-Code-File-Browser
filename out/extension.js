@@ -36,6 +36,7 @@ exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const os = __importStar(require("os"));
 function activate(context) {
     console.log('File Browser Extension is now active!');
     let disposable = vscode.commands.registerCommand('extension.openFileBrowser', () => {
@@ -120,9 +121,10 @@ class FileBrowserPanel {
     _loadDirectory(directoryPath) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const files = yield fs.promises.readdir(directoryPath, { withFileTypes: true });
+                const resolvedPath = this._resolvePath(directoryPath);
+                const files = yield fs.promises.readdir(resolvedPath, { withFileTypes: true });
                 const fileDetails = yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
-                    const filePath = path.join(directoryPath, file.name);
+                    const filePath = path.join(resolvedPath, file.name);
                     const stats = yield fs.promises.stat(filePath);
                     return {
                         name: file.name,
@@ -132,11 +134,11 @@ class FileBrowserPanel {
                         size: stats.size
                     };
                 })));
-                this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: directoryPath });
+                this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: resolvedPath });
             }
             catch (error) {
                 if (error instanceof Error) {
-                    vscode.window.showErrorMessage(`Error getting directory suggestions: ${error.message}`);
+                    vscode.window.showErrorMessage(`Error loading directory: ${error.message}`);
                 }
                 else {
                     vscode.window.showErrorMessage(`Error loading directory: An unknown error occurred`);
@@ -144,13 +146,25 @@ class FileBrowserPanel {
             }
         });
     }
+    _resolvePath(inputPath) {
+        var _a, _b, _c, _d;
+        if (path.isAbsolute(inputPath)) {
+            return inputPath;
+        }
+        if (inputPath === '.' || inputPath === './') {
+            return ((_b = (_a = vscode.workspace.workspaceFolders) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.uri.fsPath) || os.homedir();
+        }
+        const currentDir = ((_d = (_c = vscode.workspace.workspaceFolders) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.uri.fsPath) || os.homedir();
+        return path.resolve(currentDir, inputPath);
+    }
     _getDirectorySuggestions(partialPath) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const dirPath = path.dirname(partialPath);
+                const resolvedPath = this._resolvePath(partialPath);
+                const dirPath = path.dirname(resolvedPath);
                 const files = yield fs.promises.readdir(dirPath, { withFileTypes: true });
                 return files
-                    .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(partialPath).toLowerCase()))
+                    .filter(file => file.isDirectory() && file.name.toLowerCase().startsWith(path.basename(resolvedPath).toLowerCase()))
                     .map(file => path.join(dirPath, file.name));
             }
             catch (error) {
