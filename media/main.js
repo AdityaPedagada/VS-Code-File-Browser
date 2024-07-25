@@ -59,12 +59,10 @@
     }
 
     function updateSortButtonText() {
-        sortButton.textContent = `Sort: ${currentSortOption.charAt(0).toUpperCase() + currentSortOption.slice(1)}`;
-    }
-
-    function updateSortDirectionButton() {
-        sortDirectionButton.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
-        sortDirectionButton.className = `codicon ${sortDirection === 'asc' ? 'codicon-sort-precedence' : 'codicon-sort-precedence-desc'}`;
+        let className = `codicon codicon-arrow-small-${sortDirection === 'asc' ?  'down': 'up' }`
+        sortButton.innerHTML = `
+            <i class="${className}"></i>
+        `;
     }
 
     function updateFileView(files) {
@@ -123,13 +121,13 @@
         // Add more file type checks here
         const extension = file.name.split('.').pop().toLowerCase();
         switch (extension) {
-            case 'js': return 'codicon-file-code';
-            case 'ts': return 'codicon-file-code';
-            case 'json': return 'codicon-file-json';
-            case 'md': return 'codicon-file-markdown';
-            case 'html': return 'codicon-file-html';
-            case 'css': return 'codicon-file-css';
-            case 'pdf': return 'codicon-file-pdf';
+            // case 'js': return 'codicon-file-code';
+            // case 'ts': return 'codicon-file-code';
+            // case 'json': return 'codicon-file-json';
+            // case 'md': return 'codicon-file-markdown';
+            // case 'html': return 'codicon-file-html';
+            // case 'css': return 'codicon-file-css';
+            // case 'pdf': return 'codicon-file-pdf';
             case 'zip': case 'rar': case '7z': return 'codicon-file-zip';
             default: return 'codicon-file';
         }
@@ -161,9 +159,13 @@
     }
 
     function updateSortButtonIcons() {
+        let className = `codicon codicon-arrow-small-${sortDirection === 'asc' ?  'down': 'up' }`
         sortButton.innerHTML = `
-            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+            <i class="${className}"></i>
         `;
+        
+        sortDirectionButton.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
+        sortDirectionButton.className = `${className}`;
     }
 
     function updateSortMenu() {
@@ -171,7 +173,7 @@
             const sortType = option.dataset.sort;
             option.innerHTML = `
                 ${sortType.charAt(0).toUpperCase() + sortType.slice(1)}
-                ${currentSortOption === sortType ? '<i class="codicon codicon-check"></i>' : ''}
+                ${currentSortOption === sortType ? '<i class="codicon codicon-check"></i>' : '<i class="codicon codicon-blank"></i>'}
             `;
         });
     }
@@ -186,12 +188,12 @@
         });
     });
 
-    // sortButton.addEventListener('click', () => {
-    //     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    //     updateSortButtonIcons();
-    //     updateFileView(allFiles);
-    //     saveState();
-    // });
+    sortDirectionButton.addEventListener('click', () => {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        updateSortButtonIcons();
+        updateFileView(allFiles);
+        saveState();
+    });
 
     function showContextMenu(e, file) {
         e.preventDefault();
@@ -211,7 +213,6 @@
             actions.push('New Folder', 'New File');
         }
 
-        // Add sorting options to context menu
         actions.push('Sort');
         
         actions.forEach(action => {
@@ -251,7 +252,7 @@
         const sortSubMenu = document.createElement('div');
         sortSubMenu.className = 'sort-submenu';
         
-        const sortOptions = ['Name', 'Modified Date', 'Type', 'Size'];
+        const sortOptions = ['Name', 'Modified', 'Type', 'Size'];
         sortOptions.forEach(option => {
             const sortItem = document.createElement('div');
             const optionLower = option.toLowerCase().replace(' ', '');
@@ -276,7 +277,7 @@
         `;
         directionItem.addEventListener('click', () => {
             sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            alert("-- in ")
+            updateSortMenu();
             updateSortButtonIcons();
             updateFileView(allFiles);
             saveState();
@@ -542,7 +543,7 @@
     });
 
     window.addEventListener('focus', () => {
-        vscode.window.showErrorMessage(`Unsupported action: On Focus`);
+        vscode.window.showErrorMessage(`Unsupported action: On Focus`); // need to remove
         vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 

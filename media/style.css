@@ -204,7 +204,7 @@ button:hover {
 .sort-dropdown button {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: left;
 }
 
 .sort-menu .codicon-check {

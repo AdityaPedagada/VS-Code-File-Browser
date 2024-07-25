@@ -120,7 +120,7 @@ class FileBrowserPanel {
             <button id="new-file" class="codicon codicon-new-file"></button>
             <button id="toggle-view" class="codicon codicon-list-flat"></button>
             <div class="sort-dropdown">
-                <button id="sort-button" class="codicon codicon-sort-precedence">Sort</button>
+                <button id="sort-button" class="codicon codicon-sort-precedence"></button>
                 <div class="sort-menu">
                     <button class="sort-option" data-sort="name">Name</button>
                     <button class="sort-option" data-sort="modified">Modified Date</button>
