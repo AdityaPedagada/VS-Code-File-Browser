@@ -6,6 +6,13 @@ import { exec } from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Browser Extension is now active!');
+    
+    const codiconSrc = path.join(context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css');
+    const codiconDest = path.join(context.extensionPath, 'media', 'codicon.css');
+    fs.copyFileSync(codiconSrc, codiconDest);
+    const codiconFntSrc = path.join(context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.ttf');
+    const codiconFntDest = path.join(context.extensionPath, 'media', 'codicon.ttf');
+    fs.copyFileSync(codiconFntSrc, codiconFntDest);
 
     let disposable = vscode.commands.registerCommand('extension.openFileBrowser', () => {
         FileBrowserPanel.createOrShow(context.extensionUri);
@@ -82,25 +89,25 @@ class FileBrowserPanel {
     private async _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
-        const codiconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
+        const codiconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'));
 
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link href="${codiconUri}" rel="stylesheet">
             <link href="${styleUri}" rel="stylesheet">
+            <link href="${codiconUri}" rel="stylesheet">
             <title>File Browser</title>
         </head>
         <body>
             <div id="toolbar">
-            <button id="back-button" class="codicon codicon-arrow-left"><-</button>
+            <button id="back-button" class="codicon codicon-arrow-left"></button>
             <input type="text" id="current-path" placeholder="Enter path...">
             <button id="go-button">Go</button>
             <input type="text" id="search-box" placeholder="Search files...">
-            <button id="new-file" class="codicon codicon-new-file">+</button>
-            <button id="toggle-view" class="codicon codicon-list-flat">|-</button>
+            <button id="new-file" class="codicon codicon-new-file"></button>
+            <button id="toggle-view" class="codicon codicon-list-flat"></button>
             </div>
             <div id="file-container"></div>
             <script src="${scriptUri}"></script>

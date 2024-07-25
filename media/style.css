@@ -83,6 +83,16 @@ button:hover {
     text-align: center;
 }
 
+.file-item.grid-item .codicon {
+    font-size: 45px;
+    margin-bottom: 5px;
+}
+
+.file-item.list-item .codicon {
+    font-size: 22px;
+    margin-right: 10px;
+}
+
 .file-item.list-item {
     width: calc(100% - 20px);
     display: flex;
@@ -100,11 +110,11 @@ button:hover {
     width: 50%;
 }
 
-.file-item.grid-item .file-name  {
+.file-item.grid-item .file-name {
     margin-top: 5px;
 }
 
-.file-item.grid-item .file-details{
+.file-item.grid-item .file-details {
     margin-top: 5px;
 }
 

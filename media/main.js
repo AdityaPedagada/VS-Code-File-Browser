@@ -366,7 +366,7 @@
 
     toggleViewButton.addEventListener('click', () => {
         isGridView = !isGridView;
-        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-grid'}`;
+        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-layout'}`;
         vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 
@@ -380,7 +380,6 @@
     });
 
     window.addEventListener('focus', () => {
-        vscode.window.showErrorMessage(`Focused now again..`);
         vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 
