@@ -76,7 +76,7 @@ button:hover {
 }
 
 .file-item.grid-item {
-    width: calc(20% - 20px);
+    width: calc(20% - 32px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -100,8 +100,15 @@ button:hover {
     width: 50%;
 }
 
-.file-name {
+.file-item.grid-item .file-name  {
     margin-top: 5px;
+}
+
+.file-item.grid-item .file-details{
+    margin-top: 5px;
+}
+
+.file-name {
     font-weight: bold;
     word-break: break-all;
 }
@@ -109,7 +116,6 @@ button:hover {
 .file-details {
     font-size: 0.8em;
     color: var(--vscode-descriptionForeground);
-    margin-top: 5px;
 }
 
 .context-menu {

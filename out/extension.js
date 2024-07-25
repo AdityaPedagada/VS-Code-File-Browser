@@ -102,8 +102,8 @@ class FileBrowserPanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link href="${styleUri}" rel="stylesheet">
             <link href="${codiconUri}" rel="stylesheet">
+            <link href="${styleUri}" rel="stylesheet">
             <title>File Browser</title>
         </head>
         <body>

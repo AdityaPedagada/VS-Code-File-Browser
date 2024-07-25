@@ -1,8 +1,10 @@
 {
     "name": "file-browser-extension",
-    "displayName": "File Browser",
-    "description": "Browse files in grid format",
+    "displayName": "File Browser (In Main Window)",
+    "description": "Browse files in grid format in main window",
     "version": "0.0.1",
+    "publisher":"adityapedagada",
+    "icon": "media/file-browser-icon-128.png",
     "engines": {
         "vscode": "^1.75.0"
     },
