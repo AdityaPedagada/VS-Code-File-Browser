@@ -61,6 +61,7 @@ class FileBrowserPanel {
         }
         const panel = vscode.window.createWebviewPanel('fileBrowser', 'File Browser', column || vscode.ViewColumn.One, {
             enableScripts: true,
+            retainContextWhenHidden: true,
             localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
         });
         FileBrowserPanel.currentPanel = new FileBrowserPanel(panel, extensionUri);
@@ -90,6 +91,11 @@ class FileBrowserPanel {
                     return;
             }
         }), null, this._disposables);
+        this._panel.onDidChangeViewState(e => {
+            if (this._panel.visible) {
+                this._panel.webview.postMessage({ command: 'restoreState' });
+            }
+        }, null, this._disposables);
     }
     _update() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -120,7 +126,18 @@ class FileBrowserPanel {
             <input type="text" id="search-box" placeholder="Search files...">
             <button id="new-file" class="codicon codicon-new-file"></button>
             <button id="toggle-view" class="codicon codicon-list-flat"></button>
+            <div class="sort-dropdown">
+                <button id="sort-button" class="codicon codicon-sort-precedence">Sort</button>
+                <div class="sort-menu">
+                    <button class="sort-option" data-sort="name">Name</button>
+                    <button class="sort-option" data-sort="modified">Modified Date</button>
+                    <button class="sort-option" data-sort="type">Type</button>
+                    <button class="sort-option" data-sort="size">Size</button>
+                    <hr>
+                    <button id="sort-direction" class="codicon codicon-sort-precedence">Ascending</button>
+                </div>
             </div>
+        </div>
             <div id="file-container"></div>
             <script src="${scriptUri}"></script>
         </body>

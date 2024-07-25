@@ -6,6 +6,9 @@
     const backButton = document.getElementById('back-button');
     const toggleViewButton = document.getElementById('toggle-view');
     const searchBox = document.getElementById('search-box');
+    const sortButton = document.getElementById('sort-button');
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const sortDirectionButton = document.getElementById('sort-direction');
 
     let currentPath = '';
     let isGridView = true;
@@ -13,6 +16,19 @@
     let allFiles = [];
     let currentSuggestionIndex = -1;
     let suggestionList = null;
+    let currentSortOption = 'name';
+    let sortDirection = 'asc';
+    let currentSearchQuery = '';
+
+    // Restore state
+    const state = vscode.getState() || {};
+    currentSortOption = state.sortOption || 'name';
+    sortDirection = state.sortDirection || 'asc';
+    currentSearchQuery = state.searchQuery || '';
+    isGridView = state.isGridView !== undefined ? state.isGridView : true;
+
+    toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-grid'}`;
+    searchBox.value = currentSearchQuery;
 
     window.addEventListener('message', event => {
         const message = event.data;
@@ -33,14 +49,34 @@
         }
     });
 
+    function saveState() {
+        vscode.setState({
+            sortOption: currentSortOption,
+            sortDirection: sortDirection,
+            searchQuery: currentSearchQuery,
+            isGridView: isGridView
+        });
+    }
+
+    function updateSortButtonText() {
+        sortButton.textContent = `Sort: ${currentSortOption.charAt(0).toUpperCase() + currentSortOption.slice(1)}`;
+    }
+
+    function updateSortDirectionButton() {
+        sortDirectionButton.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
+        sortDirectionButton.className = `codicon ${sortDirection === 'asc' ? 'codicon-sort-precedence' : 'codicon-sort-precedence-desc'}`;
+    }
+
     function updateFileView(files) {
+        const sortedFiles = sortFiles(files);
+
         fileContainer.innerHTML = '';
-        if (files.length === 0) {
+        if (sortedFiles.length === 0) {
             fileContainer.innerHTML = '<div class="no-results">No files found</div>';
             return;
         }
         const viewMethod = isGridView ? createGridItem : createListItem;
-        files.forEach(file => {
+        sortedFiles.forEach(file => {
             const fileElement = viewMethod(file);
             fileContainer.appendChild(fileElement);
         });
@@ -99,38 +135,105 @@
         }
     }
 
+    function sortFiles(files) {
+        return files.sort((a, b) => {
+            let compareResult;
+            switch (currentSortOption) {
+                case 'name':
+                    compareResult = a.name.localeCompare(b.name);
+                    break;
+                case 'modified':
+                    compareResult = new Date(b.lastModified) - new Date(a.lastModified);
+                    break;
+                case 'type':
+                    const extA = a.name.split('.').pop().toLowerCase();
+                    const extB = b.name.split('.').pop().toLowerCase();
+                    compareResult = extA.localeCompare(extB);
+                    break;
+                case 'size':
+                    compareResult = a.size - b.size;
+                    break;
+                default:
+                    compareResult = 0;
+            }
+            return sortDirection === 'asc' ? compareResult : -compareResult;
+        });
+    }
+
+    function updateSortButtonIcons() {
+        sortButton.innerHTML = `
+            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+        `;
+    }
+
+    function updateSortMenu() {
+        sortOptions.forEach(option => {
+            const sortType = option.dataset.sort;
+            option.innerHTML = `
+                ${sortType.charAt(0).toUpperCase() + sortType.slice(1)}
+                ${currentSortOption === sortType ? '<i class="codicon codicon-check"></i>' : ''}
+            `;
+        });
+    }
+
+    sortOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            currentSortOption = e.target.dataset.sort;
+            updateSortMenu();
+            updateSortButtonIcons();
+            updateFileView(allFiles);
+            saveState();
+        });
+    });
+
+    // sortButton.addEventListener('click', () => {
+    //     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    //     updateSortButtonIcons();
+    //     updateFileView(allFiles);
+    //     saveState();
+    // });
+
     function showContextMenu(e, file) {
         e.preventDefault();
         
         if (currentContextMenu) {
             document.body.removeChild(currentContextMenu);
         }
-
+    
         const contextMenu = document.createElement('div');
         contextMenu.className = 'context-menu';
         contextMenu.style.position = 'absolute';
         contextMenu.style.left = `${e.pageX}px`;
         contextMenu.style.top = `${e.pageY}px`;
-
+    
         const actions = ['Open', 'Copy', 'Cut', 'Paste', 'Delete', 'Rename', 'Properties'];
         if (file.isDirectory) {
             actions.push('New Folder', 'New File');
         }
+
+        // Add sorting options to context menu
+        actions.push('Sort');
+        
         actions.forEach(action => {
             const actionItem = document.createElement('div');
             actionItem.textContent = action;
-            actionItem.addEventListener('click', () => {
-                let command = action.toLowerCase().replace(' ', '');
-                vscode.postMessage({ command: 'performFileAction', action: command, path: `${currentPath}/${file.name}` });
-                document.body.removeChild(contextMenu);
-                currentContextMenu = null;
-            });
+            if (action === 'Sort') {
+                const sortSubMenu = createSortSubMenu();
+                actionItem.appendChild(sortSubMenu);
+            } else {
+                actionItem.addEventListener('click', () => {
+                    let command = action.toLowerCase().replace(' ', '');
+                    vscode.postMessage({ command: 'performFileAction', action: command, path: `${currentPath}/${file.name}` });
+                    document.body.removeChild(contextMenu);
+                    currentContextMenu = null;
+                });
+            }
             contextMenu.appendChild(actionItem);
         });
-
+    
         document.body.appendChild(contextMenu);
         currentContextMenu = contextMenu;
-
+    
         function removeContextMenu(event) {
             if (!contextMenu.contains(event.target)) {
                 document.body.removeChild(contextMenu);
@@ -138,11 +241,70 @@
                 document.removeEventListener('click', removeContextMenu);
             }
         }
-
+    
         setTimeout(() => {
             document.addEventListener('click', removeContextMenu);
         }, 0);
     }
+    
+    function createSortSubMenu() {
+        const sortSubMenu = document.createElement('div');
+        sortSubMenu.className = 'sort-submenu';
+        
+        const sortOptions = ['Name', 'Modified Date', 'Type', 'Size'];
+        sortOptions.forEach(option => {
+            const sortItem = document.createElement('div');
+            const optionLower = option.toLowerCase().replace(' ', '');
+            sortItem.innerHTML = `
+                ${option}
+                ${currentSortOption === optionLower ? '<i class="codicon codicon-check"></i>' : ''}
+            `;
+            sortItem.addEventListener('click', () => {
+                currentSortOption = optionLower;
+                updateSortMenu();
+                updateSortButtonIcons();
+                updateFileView(allFiles);
+                saveState();
+            });
+            sortSubMenu.appendChild(sortItem);
+        });
+
+        const directionItem = document.createElement('div');
+        directionItem.innerHTML = `
+                ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+        `;
+        directionItem.addEventListener('click', () => {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            alert("-- in ")
+            updateSortButtonIcons();
+            updateFileView(allFiles);
+            saveState();
+        });
+        sortSubMenu.appendChild(directionItem);
+
+        return sortSubMenu;
+    }
+
+    searchBox.addEventListener('input', () => {
+        currentSearchQuery = searchBox.value.toLowerCase();
+        if (currentSearchQuery === '') {
+            updateFileView(allFiles);
+        } else {
+            const filteredFiles = allFiles.filter(file => 
+                file.name.toLowerCase().includes(currentSearchQuery)
+            );
+            updateFileView(filteredFiles);
+        }
+        saveState();
+    });
+
+    toggleViewButton.addEventListener('click', () => {
+        isGridView = !isGridView;
+        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-grid'}`;
+        updateFileView(allFiles);
+        saveState();
+    });
 
     searchBox.addEventListener('input', () => {
         const query = searchBox.value.toLowerCase();
@@ -380,6 +542,7 @@
     });
 
     window.addEventListener('focus', () => {
+        vscode.window.showErrorMessage(`Unsupported action: On Focus`);
         vscode.postMessage({ command: 'loadDirectory', path: currentPath });
     });
 
@@ -387,4 +550,8 @@
     vscode.postMessage({ command: 'loadDirectory', path: '.' });
 
     restoreState();
+    updateSortButtonIcons();
+    updateSortMenu();
+    updateSortButtonText();
+    updateSortDirectionButton();
 })();
