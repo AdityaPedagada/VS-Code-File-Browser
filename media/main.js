@@ -1,5 +1,6 @@
 (function() {
     const vscode = acquireVsCodeApi();
+    const fileSpace = document.getElementById('file-space');
     const fileContainer = document.getElementById('file-container');
     const currentPathInput = document.getElementById('current-path');
     const goButton = document.getElementById('go-button');
@@ -19,6 +20,7 @@
     let currentSortOption = 'name';
     let sortDirection = 'asc';
     let currentSearchQuery = '';
+    let platform;
 
     // Restore state
     const state = vscode.getState() || {};
@@ -38,6 +40,7 @@
                 updateFileView(message.files);
                 currentPath = message.path;
                 currentPathInput.value = currentPath;
+                platform = message.platform;
                 saveState();
                 break;
             case 'updateSuggestions':
@@ -203,9 +206,12 @@
         contextMenu.style.left = `${e.pageX}px`;
         contextMenu.style.top = `${e.pageY}px`;
     
-        const actions = ['Open', 'Copy', 'Cut', 'Paste', 'Delete', 'Rename', 'Properties'];
+        const actions = ['Open', 'Open in New Window', 'Copy', 'Cut', 'Paste', 'Delete', 'Rename', 'Properties'];
         if (file.isDirectory) {
             actions.push('New Folder', 'New File');
+        }
+        if (platform === 'win32' || platform === 'darwin') {
+            actions.splice(2, 0, 'Open in Explorer');
         }
 
         actions.push('Sort');
@@ -213,12 +219,13 @@
         actions.forEach(action => {
             const actionItem = document.createElement('div');
             actionItem.textContent = action;
+            actionItem.className = 'context-menu-item'
             if (action === 'Sort') {
                 const sortSubMenu = createSortSubMenu();
                 actionItem.appendChild(sortSubMenu);
             } else {
                 actionItem.addEventListener('click', () => {
-                    let command = action.toLowerCase().replace(' ', '');
+                    let command = action.toLowerCase().replaceAll(' ', '');
                     vscode.postMessage({ command: 'performFileAction', action: command, path: `${currentPath}/${file.name}` });
                     document.body.removeChild(contextMenu);
                     currentContextMenu = null;
@@ -250,7 +257,7 @@
         const sortOptions = ['Name', 'Modified', 'Type', 'Size'];
         sortOptions.forEach(option => {
             const sortItem = document.createElement('div');
-            const optionLower = option.toLowerCase().replace(' ', '');
+            const optionLower = option.toLowerCase().replaceAll(' ', '');
 
             sortItem.className = 'sort-submenu-item sort-submenu-option-item';
             sortItem.innerHTML = `
@@ -468,12 +475,16 @@
         contextMenu.style.left = `${e.pageX}px`;
         contextMenu.style.top = `${e.pageY}px`;
     
-        const actions = ['New Folder', 'New File'];
+        let actions = ['New Folder', 'New File', 'Paste', 'Open in New Window', ];
+        if (platform === 'win32' || platform === 'darwin') {
+            actions.splice(3, 0, 'Open in Explorer');
+        }
         actions.forEach(action => {
             const actionItem = document.createElement('div');
             actionItem.textContent = action;
+            actionItem.className = 'context-menu-item'
             actionItem.addEventListener('click', () => {
-                let command = action.toLowerCase().replace(' ', '');
+                let command = action.toLowerCase().replaceAll(' ', '');
                 vscode.postMessage({ command: 'performFileAction', action: command, path: currentPath });
                 document.body.removeChild(contextMenu);
                 currentContextMenu = null;
@@ -497,8 +508,8 @@
         }, 0);
     }
 
-    fileContainer.addEventListener('contextmenu', (e) => {
-        if (e.target === fileContainer) {
+    fileSpace.addEventListener('contextmenu', (e) => {
+        if (e.target === fileSpace || e.target === fileContainer) {
             showEmptySpaceContextMenu(e);
         }
     });

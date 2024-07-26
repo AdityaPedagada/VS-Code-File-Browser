@@ -4,6 +4,7 @@ body {
     background-color: var(--vscode-editor-background);
     margin: 0;
     padding: 0;
+    height: 100vh;
 }
 
 #toolbar {
@@ -55,10 +56,15 @@ button:hover {
     margin-right: 5px;
 }
 
+#file-space {
+    height:  calc(100vh - 48px);
+}
+
 #file-container {
     display: flex;
     flex-wrap: wrap;
     padding: 20px;
+    
 }
 
 .file-item {
@@ -136,15 +142,19 @@ button:hover {
     z-index: 1000;
 }
 
-.context-menu div {
+.context-menu .context-menu-item {
     padding: 5px 20px;
     cursor: pointer;
     position: relative;
 }
 
-.context-menu div:hover {
+.context-menu .context-menu-item:hover {
     background-color: var(--vscode-menu-selectionBackground);
     color: var(--vscode-menu-selectionForeground);
+}
+
+#sort-button {
+    text-wrap: nowrap;
 }
 
 .sort-dropdown {
@@ -160,6 +170,7 @@ button:hover {
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     z-index: 1;
     right: 0;
+    padding: 0px !important;
 }
 
 .sort-menu button {

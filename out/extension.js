@@ -120,25 +120,28 @@ class FileBrowserPanel {
         </head>
         <body>
             <div id="toolbar">
-            <button id="back-button" class="codicon codicon-arrow-left"></button>
-            <input type="text" id="current-path" placeholder="Enter path...">
-            <button id="go-button">Go</button>
-            <input type="text" id="search-box" placeholder="Search files...">
-            <button id="new-file" class="codicon codicon-new-file"></button>
-            <button id="toggle-view" class="codicon codicon-list-flat"></button>
-            <div class="sort-dropdown">
-                <button id="sort-button" class="codicon codicon-sort-precedence"></button>
-                <div class="sort-menu">
-                    <button class="sort-option" data-sort="name">Name</button>
-                    <button class="sort-option" data-sort="modified">Modified Date</button>
-                    <button class="sort-option" data-sort="type">Type</button>
-                    <button class="sort-option" data-sort="size">Size</button>
-                    <hr>
-                    <button id="sort-direction" ></button>
+                <button id="back-button" class="codicon codicon-arrow-left"></button>
+                <input type="text" id="current-path" placeholder="Enter path...">
+                <button id="go-button">Go</button>
+                <input type="text" id="search-box" placeholder="Search files...">
+                <button id="new-file" class="codicon codicon-new-file"></button>
+                <button id="toggle-view" class="codicon codicon-list-flat"></button>
+                <div class="sort-dropdown">
+                    <button id="sort-button" class="codicon codicon-sort-precedence"></button>
+                    <div class="sort-menu">
+                        <button class="sort-option" data-sort="name">Name</button>
+                        <button class="sort-option" data-sort="modified">Modified Date</button>
+                        <button class="sort-option" data-sort="type">Type</button>
+                        <button class="sort-option" data-sort="size">Size</button>
+                        <hr>
+                        <button id="sort-direction" ></button>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <div id="file-space">
             <div id="file-container"></div>
+            </div>
             <script src="${scriptUri}"></script>
         </body>
         </html>`;
@@ -160,7 +163,7 @@ class FileBrowserPanel {
                         size: stats.size
                     };
                 })));
-                this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: resolvedPath });
+                this._panel.webview.postMessage({ command: 'updateFiles', files: fileDetails, path: resolvedPath, platform: process.platform });
             }
             catch (error) {
                 if (error instanceof Error) {
@@ -217,8 +220,25 @@ class FileBrowserPanel {
         return __awaiter(this, void 0, void 0, function* () {
             switch (action) {
                 case 'open':
-                    const document = yield vscode.workspace.openTextDocument(filePath);
-                    yield vscode.window.showTextDocument(document);
+                    try {
+                        const stats = yield fs.promises.stat(filePath);
+                        if (stats.isDirectory()) {
+                            yield this._loadDirectory(filePath);
+                        }
+                        else {
+                            const document = yield vscode.workspace.openTextDocument(filePath);
+                            yield vscode.window.showTextDocument(document);
+                        }
+                    }
+                    catch (error) {
+                        vscode.window.showErrorMessage(`Error opening file or directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                    break;
+                case 'openinnewwindow':
+                    vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(filePath), true);
+                    break;
+                case 'openinexplorer':
+                    this._openInExplorer(filePath);
                     break;
                 case 'delete':
                     const confirmation = yield vscode.window.showWarningMessage(`Are you sure you want to delete ${filePath}?`, 'Yes', 'No');
@@ -286,29 +306,35 @@ class FileBrowserPanel {
         });
     }
     _showFileProperties(filePath) {
+        fs.stat(filePath, (err, stats) => {
+            if (err) {
+                vscode.window.showErrorMessage(`Error getting file properties: ${err.message}`);
+                return;
+            }
+            const properties = `
+                Name: ${path.basename(filePath)}
+                Path: ${filePath}
+                Size: ${stats.size} bytes
+                Created: ${stats.birthtime}
+                Modified: ${stats.mtime}
+                Permissions: ${stats.mode}
+            `;
+            vscode.window.showInformationMessage(properties, { modal: true });
+        });
+    }
+    _openInExplorer(filePath) {
+        const directoryPath = path.dirname(filePath);
         if (process.platform === 'win32') {
-            (0, child_process_1.exec)(`explorer /select,"${filePath}"`);
+            (0, child_process_1.exec)(`explorer "${directoryPath}"`);
         }
         else if (process.platform === 'darwin') {
-            (0, child_process_1.exec)(`open -R "${filePath}"`);
+            (0, child_process_1.exec)(`open "${directoryPath}"`);
+        }
+        else if (process.platform === 'linux') {
+            (0, child_process_1.exec)(`xdg-open "${directoryPath}"`);
         }
         else {
-            // For Linux, we'll show a simple properties dialog
-            fs.stat(filePath, (err, stats) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Error getting file properties: ${err.message}`);
-                    return;
-                }
-                const properties = `
-                    Name: ${path.basename(filePath)}
-                    Path: ${filePath}
-                    Size: ${stats.size} bytes
-                    Created: ${stats.birthtime}
-                    Modified: ${stats.mtime}
-                    Permissions: ${stats.mode}
-                `;
-                vscode.window.showInformationMessage(properties, { modal: true });
-            });
+            vscode.window.showErrorMessage('This feature is only available on Windows and macOS.');
         }
     }
     _searchFiles(directoryPath, query) {
