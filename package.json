@@ -2,7 +2,7 @@
     "name": "file-browser-extension",
     "displayName": "File Browser (In Main Window)",
     "description": "Browse files in grid format in main window",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher":"adityapedagada",
     "icon": "media/file-browser-icon-128.png",
     "engines": {
@@ -46,7 +46,8 @@
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
+        "test": "node ./out/test/runTest.js",
+        "vscode:publish": "vsce publish --allow-missing-repository"
     },
     "devDependencies": {
         "@types/glob": "^7.1.3",
