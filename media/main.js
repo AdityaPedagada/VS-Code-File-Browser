@@ -58,12 +58,6 @@
         });
     }
 
-    function updateSortButtonText() {
-        let className = `codicon codicon-arrow-small-${sortDirection === 'asc' ?  'down': 'up' }`
-        sortButton.innerHTML = `
-            <i class="${className}"></i>
-        `;
-    }
 
     function updateFileView(files) {
         const sortedFiles = sortFiles(files);
@@ -164,8 +158,10 @@
             <i class="${className}"></i>
         `;
         
-        sortDirectionButton.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
-        sortDirectionButton.className = `${className}`;
+        sortDirectionButton.innerHTML = `
+                ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                <i class="${className}"></i>
+            `;
     }
 
     function updateSortMenu() {
@@ -173,7 +169,7 @@
             const sortType = option.dataset.sort;
             option.innerHTML = `
                 ${sortType.charAt(0).toUpperCase() + sortType.slice(1)}
-                ${currentSortOption === sortType ? '<i class="codicon codicon-check"></i>' : '<i class="codicon codicon-blank"></i>'}
+                ${currentSortOption === sortType ? '<i class="codicon codicon-check"></i>' : ''}
             `;
         });
     }
@@ -182,7 +178,6 @@
         option.addEventListener('click', (e) => {
             currentSortOption = e.target.dataset.sort;
             updateSortMenu();
-            updateSortButtonIcons();
             updateFileView(allFiles);
             saveState();
         });
@@ -257,7 +252,7 @@
             const sortItem = document.createElement('div');
             const optionLower = option.toLowerCase().replace(' ', '');
 
-            sortItem.className = 'sort-submenu-item';
+            sortItem.className = 'sort-submenu-item sort-submenu-option-item';
             sortItem.innerHTML = `
                 ${option}
                 <i class="codicon ${currentSortOption === optionLower ? 'codicon-check' : 'codicon-blank'}"></i>
@@ -265,6 +260,7 @@
             sortItem.addEventListener('click', (e) => {
                 e.stopPropagation();
                 currentSortOption = optionLower;
+                updateSortMenu();
                 updateContextMenuSortOptions(sortSubMenu);
                 updateFileView(allFiles);
                 saveState();
@@ -273,15 +269,16 @@
         });
 
         const directionItem = document.createElement('div');
-        directionItem.className = 'sort-submenu-item';
+        directionItem.className = 'sort-submenu-item sort-submenu-direction-item';
         directionItem.innerHTML = `
             ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'down' : 'up' }"></i>
         `;
         directionItem.addEventListener('click', (e) => {
             e.stopPropagation();
             sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            updateContextMenuSortDirection(directionItem);
+            updateSortButtonIcons();
+            updateContextMenuSortDirection();
             updateFileView(allFiles);
             saveState();
         });
@@ -291,7 +288,7 @@
     }
 
     function updateContextMenuSortOptions(sortSubMenu) {
-        const sortItems = sortSubMenu.querySelectorAll('.sort-submenu-item');
+        const sortItems = sortSubMenu.querySelectorAll('.sort-submenu-option-item');
         sortItems.forEach(item => {
             const option = item.textContent.trim().toLowerCase();
             const icon = item.querySelector('.codicon');
@@ -303,11 +300,17 @@
         });
     }
 
-    function updateContextMenuSortDirection(directionItem) {
-        directionItem.innerHTML = `
-            ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
-        `;
+    function updateContextMenuSortDirection() {
+        const sortSubMenus = currentContextMenu.querySelectorAll('.sort-submenu');
+        sortSubMenus.forEach(sortSubMenu => {
+            const sortItems = sortSubMenu.querySelectorAll('.sort-submenu-direction-item');
+            sortItems.forEach(directionItem => {
+                directionItem.innerHTML = `
+                    ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                    <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'down' : 'up' }"></i>
+                `;
+            });
+        });
     }
 
     searchBox.addEventListener('input', () => {
@@ -325,7 +328,7 @@
 
     toggleViewButton.addEventListener('click', () => {
         isGridView = !isGridView;
-        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-grid'}`;
+        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-layout'}`;
         updateFileView(allFiles);
         saveState();
     });
@@ -550,12 +553,6 @@
         vscode.postMessage({ command: 'loadDirectory', path: parentPath });
     });
 
-    toggleViewButton.addEventListener('click', () => {
-        isGridView = !isGridView;
-        toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-layout'}`;
-        vscode.postMessage({ command: 'loadDirectory', path: currentPath });
-    });
-
     searchBox.addEventListener('input', () => {
         const query = searchBox.value.trim();
         if (query === '') {
@@ -576,6 +573,4 @@
     restoreState();
     updateSortButtonIcons();
     updateSortMenu();
-    updateSortButtonText();
-    updateSortDirectionButton();
 })();

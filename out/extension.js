@@ -134,7 +134,7 @@ class FileBrowserPanel {
                     <button class="sort-option" data-sort="type">Type</button>
                     <button class="sort-option" data-sort="size">Size</button>
                     <hr>
-                    <button id="sort-direction" class="codicon codicon-sort-precedence">Ascending</button>
+                    <button id="sort-direction" ></button>
                 </div>
             </div>
         </div>
