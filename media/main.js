@@ -256,14 +256,16 @@
         sortOptions.forEach(option => {
             const sortItem = document.createElement('div');
             const optionLower = option.toLowerCase().replace(' ', '');
+
+            sortItem.className = 'sort-submenu-item';
             sortItem.innerHTML = `
                 ${option}
-                ${currentSortOption === optionLower ? '<i class="codicon codicon-check"></i>' : ''}
+                <i class="codicon ${currentSortOption === optionLower ? 'codicon-check' : 'codicon-blank'}"></i>
             `;
-            sortItem.addEventListener('click', () => {
+            sortItem.addEventListener('click', (e) => {
+                e.stopPropagation();
                 currentSortOption = optionLower;
-                updateSortMenu();
-                updateSortButtonIcons();
+                updateContextMenuSortOptions(sortSubMenu);
                 updateFileView(allFiles);
                 saveState();
             });
@@ -271,20 +273,41 @@
         });
 
         const directionItem = document.createElement('div');
+        directionItem.className = 'sort-submenu-item';
         directionItem.innerHTML = `
-                ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-                <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+            ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
         `;
-        directionItem.addEventListener('click', () => {
+        directionItem.addEventListener('click', (e) => {
+            e.stopPropagation();
             sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            updateSortMenu();
-            updateSortButtonIcons();
+            updateContextMenuSortDirection(directionItem);
             updateFileView(allFiles);
             saveState();
         });
         sortSubMenu.appendChild(directionItem);
 
         return sortSubMenu;
+    }
+
+    function updateContextMenuSortOptions(sortSubMenu) {
+        const sortItems = sortSubMenu.querySelectorAll('.sort-submenu-item');
+        sortItems.forEach(item => {
+            const option = item.textContent.trim().toLowerCase();
+            const icon = item.querySelector('.codicon');
+            if (option === currentSortOption) {
+                icon.className = 'codicon codicon-check';
+            } else {
+                icon.className = 'codicon codicon-blank';
+            }
+        });
+    }
+
+    function updateContextMenuSortDirection(directionItem) {
+        directionItem.innerHTML = `
+            ${sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+            <i class="codicon codicon-arrow-small-${sortDirection === 'asc' ? 'up' : 'down'}"></i>
+        `;
     }
 
     searchBox.addEventListener('input', () => {

@@ -195,20 +195,28 @@ button:hover {
     border: 1px solid var(--vscode-menu-border);
     box-shadow: 2px 2px 8px var(--vscode-widget-shadow);
     display: none;
+    min-width: 150px;
 }
 
 .context-menu div:hover > .sort-submenu {
     display: block;
 }
 
-.sort-dropdown button {
+.sort-submenu-item {
+    padding: 5px 10px;
+    cursor: pointer;
     display: flex;
-    align-items: center;
     justify-content: left;
+    align-items: center;
 }
 
-.sort-menu .codicon-check {
-    margin-left: auto;
+.sort-submenu-item:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
+
+.sort-submenu-item .codicon {
+    margin-left: 10px;
 }
 
 .sort-submenu .codicon-check,
