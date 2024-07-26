@@ -371,6 +371,10 @@
         vscode.postMessage({ command: 'performFileAction', action: 'newFile', path: currentPath });
     });
 
+    document.getElementById('new-folder').addEventListener('click', () => {
+        vscode.postMessage({ command: 'performFileAction', action: 'newFolder', path: currentPath });
+    });
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (currentContextMenu) {

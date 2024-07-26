@@ -125,6 +125,7 @@ class FileBrowserPanel {
                 <button id="go-button">Go</button>
                 <input type="text" id="search-box" placeholder="Search files...">
                 <button id="new-file" class="codicon codicon-new-file"></button>
+                <button id="new-folder" class="codicon codicon-new-folder"></button>
                 <button id="toggle-view" class="codicon codicon-list-flat"></button>
                 <div class="sort-dropdown">
                     <button id="sort-button" class="codicon codicon-sort-precedence"></button>

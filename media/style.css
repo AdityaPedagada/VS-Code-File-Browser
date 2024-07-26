@@ -5,6 +5,7 @@ body {
     margin: 0;
     padding: 0;
     height: 100vh;
+    min-width: 720px;
 }
 
 #toolbar {
@@ -103,6 +104,7 @@ button:hover {
     width: calc(100% - 20px);
     display: flex;
     align-items: center;
+    min-width: 90px;
 }
 
 .file-item.list-item .file-name {
