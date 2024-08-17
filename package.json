@@ -46,15 +46,22 @@
             {
                 "title": "File Browser",
                 "properties": {
+                    "file-browser.show-status-bar": {
+                        "type": "string",
+                        "default": "enable",
+                        "enum": ["enable", "disable"],
+                        "description": "Enable or disable the file-browser icon in the status bar."
+                    },
                     "file-browser.status-bar-position": {
                         "type": "string",
                         "default": "left",
-                        "description": "set left or right sets the file-browser icon display position on status-bar. E.g \"file-browser.status-bar-position\":\"left\""
+                        "enum": ["left", "right"],
+                        "description": "Set the file-browser icon display position on status-bar."
                     },
                     "file-browser.status-bar-priority": {
                         "type": "integer",
                         "default": 0,
-                        "description": "Higher values mean the item should be shown more to the left. sets the file-browser icon display priority on status-bar."
+                        "description": "Higher values mean the item should be shown more to the left. Sets the file-browser icon display priority on status-bar."
                     }
                 }
             }

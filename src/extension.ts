@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { exec } from 'child_process';
 
-let statusBarItem: vscode.StatusBarItem;
+let statusBarItem: vscode.StatusBarItem | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Browser Extension is now active!');
@@ -23,12 +23,13 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     // Create status bar item
-    createStatusBarItem(context);
+    updateStatusBarItem(context);
 
     // Listen for configuration changes
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('file-browser.status-bar-position') || 
-            e.affectsConfiguration('file-browser.status-bar-priority')) {
+            e.affectsConfiguration('file-browser.status-bar-priority') ||
+            e.affectsConfiguration('file-browser.show-status-bar')) {
             updateStatusBarItem(context);
         }
     }));
@@ -38,8 +39,6 @@ export function deactivate() {
     if (statusBarItem) {
         statusBarItem.dispose();
     }
-    // If you have any asynchronous cleanup, you can return a Promise here.
-    // For now, we'll just return undefined for synchronous cleanup.
     return undefined;
 }
 
@@ -73,13 +72,24 @@ function getStatusBarPriority(): number {
     return priority || 0;
 }
 
+function shouldShowStatusBar(): boolean {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    return config.get('show-status-bar') === 'enable';
+}
+
 function updateStatusBarItem(context: vscode.ExtensionContext) {
     console.log('Updating status bar item');
     if (statusBarItem) {
         statusBarItem.dispose();
+        statusBarItem = undefined;
     }
-    createStatusBarItem(context);
-    console.log('Status bar item updated and shown');
+
+    if (shouldShowStatusBar()) {
+        createStatusBarItem(context);
+        console.log('Status bar item updated and shown');
+    } else {
+        console.log('Status bar item hidden');
+    }
 }
 
 class FileBrowserPanel {

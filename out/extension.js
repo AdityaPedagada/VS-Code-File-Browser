@@ -52,11 +52,12 @@ function activate(context) {
     });
     context.subscriptions.push(disposable);
     // Create status bar item
-    createStatusBarItem(context);
+    updateStatusBarItem(context);
     // Listen for configuration changes
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('file-browser.status-bar-position') ||
-            e.affectsConfiguration('file-browser.status-bar-priority')) {
+            e.affectsConfiguration('file-browser.status-bar-priority') ||
+            e.affectsConfiguration('file-browser.show-status-bar')) {
             updateStatusBarItem(context);
         }
     }));
@@ -66,8 +67,6 @@ function deactivate() {
     if (statusBarItem) {
         statusBarItem.dispose();
     }
-    // If you have any asynchronous cleanup, you can return a Promise here.
-    // For now, we'll just return undefined for synchronous cleanup.
     return undefined;
 }
 exports.deactivate = deactivate;
@@ -98,13 +97,23 @@ function getStatusBarPriority() {
     console.log('Status bar priority:', priority);
     return priority || 0;
 }
+function shouldShowStatusBar() {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    return config.get('show-status-bar') === 'enable';
+}
 function updateStatusBarItem(context) {
     console.log('Updating status bar item');
     if (statusBarItem) {
         statusBarItem.dispose();
+        statusBarItem = undefined;
     }
-    createStatusBarItem(context);
-    console.log('Status bar item updated and shown');
+    if (shouldShowStatusBar()) {
+        createStatusBarItem(context);
+        console.log('Status bar item updated and shown');
+    }
+    else {
+        console.log('Status bar item hidden');
+    }
 }
 class FileBrowserPanel {
     static createOrShow(extensionUri) {
