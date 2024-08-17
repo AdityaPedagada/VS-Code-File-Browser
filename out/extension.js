@@ -32,12 +32,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activate = void 0;
+exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const child_process_1 = require("child_process");
+let statusBarItem;
 function activate(context) {
     console.log('File Browser Extension is now active!');
     const codiconSrc = path.join(context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css');
@@ -50,8 +51,61 @@ function activate(context) {
         FileBrowserPanel.createOrShow(context.extensionUri);
     });
     context.subscriptions.push(disposable);
+    // Create status bar item
+    createStatusBarItem(context);
+    // Listen for configuration changes
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('file-browser.status-bar-position') ||
+            e.affectsConfiguration('file-browser.status-bar-priority')) {
+            updateStatusBarItem(context);
+        }
+    }));
 }
 exports.activate = activate;
+function deactivate() {
+    if (statusBarItem) {
+        statusBarItem.dispose();
+    }
+    // If you have any asynchronous cleanup, you can return a Promise here.
+    // For now, we'll just return undefined for synchronous cleanup.
+    return undefined;
+}
+exports.deactivate = deactivate;
+function createStatusBarItem(context) {
+    try {
+        statusBarItem = vscode.window.createStatusBarItem(getStatusBarAlignment(), getStatusBarPriority());
+        statusBarItem.command = 'extension.openFileBrowser';
+        statusBarItem.text = '$(file-directory) File Browser';
+        statusBarItem.tooltip = 'Open File Browser';
+        statusBarItem.show();
+        console.log('Status bar item created and shown');
+        context.subscriptions.push(statusBarItem);
+    }
+    catch (error) {
+        console.error('Error creating status bar item:', error);
+        vscode.window.showErrorMessage('Failed to create File Browser status bar item');
+    }
+}
+function getStatusBarAlignment() {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    const position = config.get('status-bar-position');
+    console.log('Status bar position:', position);
+    return position === 'left' ? vscode.StatusBarAlignment.Left : vscode.StatusBarAlignment.Right;
+}
+function getStatusBarPriority() {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    const priority = config.get('status-bar-priority');
+    console.log('Status bar priority:', priority);
+    return priority || 0;
+}
+function updateStatusBarItem(context) {
+    console.log('Updating status bar item');
+    if (statusBarItem) {
+        statusBarItem.dispose();
+    }
+    createStatusBarItem(context);
+    console.log('Status bar item updated and shown');
+}
 class FileBrowserPanel {
     static createOrShow(extensionUri) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;

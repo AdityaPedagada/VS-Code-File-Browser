@@ -4,6 +4,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { exec } from 'child_process';
 
+let statusBarItem: vscode.StatusBarItem;
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Browser Extension is now active!');
     
@@ -19,6 +21,65 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(disposable);
+
+    // Create status bar item
+    createStatusBarItem(context);
+
+    // Listen for configuration changes
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('file-browser.status-bar-position') || 
+            e.affectsConfiguration('file-browser.status-bar-priority')) {
+            updateStatusBarItem(context);
+        }
+    }));
+}
+
+export function deactivate() {
+    if (statusBarItem) {
+        statusBarItem.dispose();
+    }
+    // If you have any asynchronous cleanup, you can return a Promise here.
+    // For now, we'll just return undefined for synchronous cleanup.
+    return undefined;
+}
+
+function createStatusBarItem(context: vscode.ExtensionContext) {
+    try {
+        statusBarItem = vscode.window.createStatusBarItem(getStatusBarAlignment(), getStatusBarPriority());
+        statusBarItem.command = 'extension.openFileBrowser';
+        statusBarItem.text = '$(file-directory) File Browser';
+        statusBarItem.tooltip = 'Open File Browser';
+        statusBarItem.show();
+        console.log('Status bar item created and shown');
+
+        context.subscriptions.push(statusBarItem);
+    } catch (error) {
+        console.error('Error creating status bar item:', error);
+        vscode.window.showErrorMessage('Failed to create File Browser status bar item');
+    }
+}
+
+function getStatusBarAlignment(): vscode.StatusBarAlignment {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    const position = config.get('status-bar-position');
+    console.log('Status bar position:', position);
+    return position === 'left' ? vscode.StatusBarAlignment.Left : vscode.StatusBarAlignment.Right;
+}
+
+function getStatusBarPriority(): number {
+    const config = vscode.workspace.getConfiguration('file-browser');
+    const priority = config.get('status-bar-priority') as number;
+    console.log('Status bar priority:', priority);
+    return priority || 0;
+}
+
+function updateStatusBarItem(context: vscode.ExtensionContext) {
+    console.log('Updating status bar item');
+    if (statusBarItem) {
+        statusBarItem.dispose();
+    }
+    createStatusBarItem(context);
+    console.log('Status bar item updated and shown');
 }
 
 class FileBrowserPanel {

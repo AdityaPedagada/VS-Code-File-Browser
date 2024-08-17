@@ -12,6 +12,9 @@
         "Other"
     ],
     "main": "./out/extension.js",
+    "activationEvents": [
+        "*"
+    ],
     "contributes": {
         "commands": [
             {
@@ -38,7 +41,24 @@
                     "group": "navigation"
                 }
             ]
-        }
+        },
+        "configuration": [
+            {
+                "title": "File Browser",
+                "properties": {
+                    "file-browser.status-bar-position": {
+                        "type": "string",
+                        "default": "left",
+                        "description": "set left or right sets the file-browser icon display position on status-bar. E.g \"file-browser.status-bar-position\":\"left\""
+                    },
+                    "file-browser.status-bar-priority": {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Higher values mean the item should be shown more to the left. sets the file-browser icon display priority on status-bar."
+                    }
+                }
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
