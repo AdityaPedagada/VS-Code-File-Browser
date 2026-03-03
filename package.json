@@ -2,8 +2,9 @@
     "name": "file-browser-extension",
     "displayName": "File Browser (In Main Window)",
     "description": "Browse files in grid format in main window",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "publisher":"adityapedagada",
+    "license": "MIT",
     "icon": "media/file-browser-icon-128.png",
     "engines": {
         "vscode": "^1.75.0"
