@@ -1,0 +1,378 @@
+"use strict";
+// File Browser Panel - Main webview panel
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FileBrowserPanel = void 0;
+const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const child_process_1 = require("child_process");
+const FileService_1 = require("../services/FileService");
+const ClipboardService_1 = require("../services/ClipboardService");
+const types_1 = require("../types");
+class FileBrowserPanel {
+    static createOrShow(extensionUri, configService) {
+        const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+        if (FileBrowserPanel.currentPanel) {
+            FileBrowserPanel.currentPanel._panel.reveal(column);
+            return;
+        }
+        const panel = vscode.window.createWebviewPanel('fileBrowser', 'File Browser', column || vscode.ViewColumn.One, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+        });
+        FileBrowserPanel.currentPanel = new FileBrowserPanel(panel, extensionUri, configService);
+    }
+    constructor(panel, extensionUri, configService) {
+        this._disposables = [];
+        this._cutPath = '';
+        this._panel = panel;
+        this._extensionUri = extensionUri;
+        this.configService = configService;
+        // Initialize services
+        this.fileService = new FileService_1.FileService();
+        this.clipboardService = new ClipboardService_1.ClipboardService();
+        this._update();
+        this._registerEventHandlers();
+    }
+    _registerEventHandlers() {
+        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
+            yield this._handleMessage(message);
+        }), null, this._disposables);
+        this._panel.onDidChangeViewState((e) => {
+            if (this._panel.visible) {
+                this._panel.webview.postMessage({ command: 'restoreState' });
+            }
+        }, null, this._disposables);
+    }
+    _handleMessage(message) {
+        return __awaiter(this, void 0, void 0, function* () {
+            switch (message.command) {
+                case 'loadDirectory':
+                    yield this._loadDirectory(message.path);
+                    return;
+                case 'getDirectorySuggestions':
+                    const suggestions = yield this._getDirectorySuggestions(message.path);
+                    this._panel.webview.postMessage({ command: 'updateSuggestions', suggestions });
+                    return;
+                case 'performFileAction':
+                    yield this._performFileAction(message.action, message.path);
+                    return;
+                case 'searchFiles':
+                    const searchResults = yield this.fileService.searchFiles(message.path, message.query);
+                    this._panel.webview.postMessage({ command: 'updateSearchResults', results: searchResults });
+                    return;
+            }
+        });
+    }
+    _update() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const webview = this._panel.webview;
+            this._panel.title = 'File Browser';
+            this._panel.webview.html = yield this._getHtmlForWebview(webview);
+        });
+    }
+    _getHtmlForWebview(webview) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js'));
+            const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
+            const codiconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'));
+            return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="${styleUri}" rel="stylesheet">
+            <link href="${codiconUri}" rel="stylesheet">
+            <title>File Browser</title>
+        </head>
+        <body>
+            <div id="toolbar">
+                <button id="back-button" class="codicon codicon-arrow-left"></button>
+                <input type="text" id="current-path" placeholder="Enter path...">
+                <button id="go-button">Go</button>
+                <input type="text" id="search-box" placeholder="Search files...">
+                <button id="new-file" class="codicon codicon-new-file"></button>
+                <button id="new-folder" class="codicon codicon-new-folder"></button>
+                <button id="toggle-view" class="codicon codicon-list-flat"></button>
+                <div class="sort-dropdown">
+                    <button id="sort-button" class="codicon codicon-sort-precedence"></button>
+                    <div class="sort-menu">
+                        <button class="sort-option" data-sort="name">Name</button>
+                        <button class="sort-option" data-sort="modified">Modified Date</button>
+                        <button class="sort-option" data-sort="type">Type</button>
+                        <button class="sort-option" data-sort="size">Size</button>
+                        <hr>
+                        <button id="sort-direction"></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="file-space">
+            <div id="file-container"></div>
+            </div>
+            <script src="${scriptUri}"></script>
+        </body>
+        </html>`;
+        });
+    }
+    _resolvePath(inputPath) {
+        var _a, _b, _c, _d;
+        if (path.isAbsolute(inputPath)) {
+            return inputPath;
+        }
+        if (inputPath === '.' || inputPath === './') {
+            return ((_b = (_a = vscode.workspace.workspaceFolders) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.uri.fsPath) || os.homedir();
+        }
+        const currentDir = ((_d = (_c = vscode.workspace.workspaceFolders) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.uri.fsPath) || os.homedir();
+        return path.resolve(currentDir, inputPath);
+    }
+    _loadDirectory(directoryPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const resolvedPath = this._resolvePath(directoryPath);
+                const files = yield this.fileService.readDirectory(resolvedPath);
+                this._panel.webview.postMessage({
+                    command: 'updateFiles',
+                    files,
+                    path: resolvedPath,
+                    platform: process.platform
+                });
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+                vscode.window.showErrorMessage(`Error loading directory: ${errorMessage}`);
+            }
+        });
+    }
+    _getDirectorySuggestions(partialPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const resolvedPath = this._resolvePath(partialPath);
+                let dirPath;
+                let baseName;
+                if (resolvedPath.endsWith(path.sep)) {
+                    dirPath = resolvedPath;
+                    baseName = '';
+                }
+                else {
+                    dirPath = path.dirname(resolvedPath);
+                    baseName = path.basename(resolvedPath).toLowerCase();
+                }
+                const files = yield this.fileService.readDirectory(dirPath);
+                return files
+                    .filter(file => file.isDirectory && file.name.toLowerCase().startsWith(baseName))
+                    .map(file => path.join(dirPath, file.name, path.sep));
+            }
+            catch (error) {
+                console.error('Error getting directory suggestions:', error);
+                return [];
+            }
+        });
+    }
+    _performFileAction(action, filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            switch (action) {
+                case types_1.FileAction.Open:
+                    yield this._handleOpen(filePath);
+                    break;
+                case types_1.FileAction.OpenInNewWindow:
+                    vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(filePath), true);
+                    break;
+                case types_1.FileAction.OpenInExplorer:
+                    this._openInExplorer(filePath);
+                    break;
+                case types_1.FileAction.Delete:
+                    yield this._handleDelete(filePath);
+                    break;
+                case types_1.FileAction.Rename:
+                    yield this._handleRename(filePath);
+                    break;
+                case types_1.FileAction.NewFolder:
+                    yield this._handleNewFolder(filePath);
+                    break;
+                case types_1.FileAction.NewFile:
+                    yield this._handleNewFile(filePath);
+                    break;
+                case types_1.FileAction.Copy:
+                    yield this._handleCopy(filePath);
+                    break;
+                case types_1.FileAction.Cut:
+                    yield this._handleCut(filePath);
+                    break;
+                case types_1.FileAction.Paste:
+                    yield this._handlePaste(filePath);
+                    break;
+                case types_1.FileAction.Properties:
+                    this._showFileProperties(filePath);
+                    break;
+                default:
+                    vscode.window.showErrorMessage(`Unsupported action: ${action}`);
+            }
+        });
+    }
+    _handleOpen(filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const isDir = yield this.fileService.isDirectory(filePath);
+                if (isDir) {
+                    yield this._loadDirectory(filePath);
+                }
+                else {
+                    const document = yield vscode.workspace.openTextDocument(filePath);
+                    yield vscode.window.showTextDocument(document);
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(`Error opening file or directory: ${errorMessage}`);
+            }
+        });
+    }
+    _handleDelete(filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const confirmation = yield vscode.window.showWarningMessage(`Are you sure you want to delete ${filePath}?`, 'Yes', 'No');
+            if (confirmation === 'Yes') {
+                yield this.fileService.deleteFile(filePath);
+                yield this._loadDirectory(path.dirname(filePath));
+            }
+        });
+    }
+    _handleRename(filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const oldName = path.basename(filePath);
+            const newName = yield vscode.window.showInputBox({
+                prompt: 'Enter new name',
+                value: oldName
+            });
+            if (newName && newName !== oldName) {
+                const newPath = path.join(path.dirname(filePath), newName);
+                yield this.fileService.renameFile(filePath, newPath);
+                yield this._loadDirectory(path.dirname(filePath));
+            }
+        });
+    }
+    _handleNewFolder(parentPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folderName = yield vscode.window.showInputBox({ prompt: 'Enter folder name' });
+            if (folderName) {
+                const newFolderPath = path.join(parentPath, folderName);
+                yield this.fileService.createFolder(newFolderPath);
+                yield this._loadDirectory(parentPath);
+            }
+        });
+    }
+    _handleNewFile(parentPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const fileName = yield vscode.window.showInputBox({ prompt: 'Enter file name' });
+            if (fileName) {
+                const newFilePath = path.join(parentPath, fileName);
+                yield this.fileService.createFile(newFilePath);
+                yield this._loadDirectory(parentPath);
+            }
+        });
+    }
+    _handleCopy(filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.clipboardService.writeClipboard(filePath);
+        });
+    }
+    _handleCut(filePath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.clipboardService.writeClipboard(filePath);
+            this._cutPath = filePath;
+        });
+    }
+    _handlePaste(destinationPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._cutPath) {
+                const destPath = path.join(destinationPath, path.basename(this._cutPath));
+                yield this.fileService.moveFile(this._cutPath, destPath);
+                this._cutPath = '';
+            }
+            else {
+                const clipboardText = yield this.clipboardService.readClipboard();
+                if (clipboardText) {
+                    const destPath = path.join(destinationPath, path.basename(clipboardText));
+                    yield this.fileService.copyFile(clipboardText, destPath);
+                }
+            }
+            yield this._loadDirectory(destinationPath);
+        });
+    }
+    _showFileProperties(filePath) {
+        this.fileService.getFileStats(filePath).then((properties) => {
+            const info = `
+                Name: ${properties.name}
+                Path: ${properties.path}
+                Size: ${properties.size} bytes
+                Created: ${properties.created}
+                Modified: ${properties.modified}
+                Permissions: ${properties.permissions}
+            `;
+            vscode.window.showInformationMessage(info, { modal: true });
+        }).catch((error) => {
+            vscode.window.showErrorMessage(`Error getting file properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        });
+    }
+    _openInExplorer(filePath) {
+        const directoryPath = path.dirname(filePath);
+        if (process.platform === 'win32') {
+            (0, child_process_1.exec)(`explorer "${directoryPath}"`);
+        }
+        else if (process.platform === 'darwin') {
+            (0, child_process_1.exec)(`open "${directoryPath}"`);
+        }
+        else if (process.platform === 'linux') {
+            (0, child_process_1.exec)(`xdg-open "${directoryPath}"`);
+        }
+        else {
+            vscode.window.showErrorMessage('This feature is only available on Windows and macOS.');
+        }
+    }
+    dispose() {
+        FileBrowserPanel.currentPanel = undefined;
+        this._panel.dispose();
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
+        }
+    }
+}
+exports.FileBrowserPanel = FileBrowserPanel;
+//# sourceMappingURL=FileBrowserPanel.js.map
