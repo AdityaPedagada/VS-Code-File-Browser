@@ -40,17 +40,25 @@ class FileService {
     readDirectory(directoryPath) {
         return __awaiter(this, void 0, void 0, function* () {
             const files = yield fs.promises.readdir(directoryPath, { withFileTypes: true });
-            const fileDetails = yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
-                const filePath = path.join(directoryPath, file.name);
-                const stats = yield fs.promises.stat(filePath);
-                return {
-                    name: file.name,
-                    isDirectory: file.isDirectory(),
-                    lastModified: stats.mtime.toISOString(),
-                    type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
-                    size: stats.size
-                };
-            })));
+            const fileDetails = [];
+            for (const file of files) {
+                try {
+                    const filePath = path.join(directoryPath, file.name);
+                    const stats = yield fs.promises.stat(filePath);
+                    fileDetails.push({
+                        name: file.name,
+                        isDirectory: file.isDirectory(),
+                        lastModified: stats.mtime.toISOString(),
+                        type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
+                        size: stats.size
+                    });
+                }
+                catch (error) {
+                    // Skip files that can't be accessed (permission denied, system files, etc.)
+                    console.warn(`Skipping inaccessible file: ${file.name}`, error);
+                    continue;
+                }
+            }
             return fileDetails;
         });
     }
@@ -106,20 +114,29 @@ class FileService {
     searchFiles(directoryPath, query) {
         return __awaiter(this, void 0, void 0, function* () {
             const files = yield fs.promises.readdir(directoryPath, { withFileTypes: true });
-            const searchResults = files
-                .filter(file => file.name.toLowerCase().includes(query.toLowerCase()))
-                .map(file => {
-                const filePath = path.join(directoryPath, file.name);
-                const stats = fs.statSync(filePath);
-                return {
-                    name: file.name,
-                    isDirectory: file.isDirectory(),
-                    path: filePath,
-                    lastModified: stats.mtime.toISOString(),
-                    type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
-                    size: stats.size
-                };
-            });
+            const searchResults = [];
+            for (const file of files) {
+                try {
+                    if (!file.name.toLowerCase().includes(query.toLowerCase())) {
+                        continue;
+                    }
+                    const filePath = path.join(directoryPath, file.name);
+                    const stats = yield fs.promises.stat(filePath);
+                    searchResults.push({
+                        name: file.name,
+                        isDirectory: file.isDirectory(),
+                        path: filePath,
+                        lastModified: stats.mtime.toISOString(),
+                        type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
+                        size: stats.size
+                    });
+                }
+                catch (error) {
+                    // Skip inaccessible files
+                    console.warn(`Skipping inaccessible file: ${file.name}`, error);
+                    continue;
+                }
+            }
             return searchResults;
         });
     }

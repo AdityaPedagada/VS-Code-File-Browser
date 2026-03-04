@@ -21,6 +21,13 @@
     let sortDirection = 'asc';
     let currentSearchQuery = '';
     let platform;
+    let pathSeparator = '/';
+
+    // Helper function to join paths properly
+    function joinPath(base, name) {
+        const sep = base.includes('\\') ? '\\' : '/';
+        return base.endsWith(sep) ? base + name : base + sep + name;
+    }
 
     // Restore state
     const state = vscode.getState() || {};
@@ -226,7 +233,7 @@
             } else {
                 actionItem.addEventListener('click', () => {
                     let command = action.toLowerCase().replaceAll(' ', '');
-                    vscode.postMessage({ command: 'performFileAction', action: command, path: `${currentPath}/${file.name}` });
+                    vscode.postMessage({ command: 'performFileAction', action: command, path: joinPath(currentPath, file.name) });
                     document.body.removeChild(contextMenu);
                     currentContextMenu = null;
                 });
@@ -356,9 +363,9 @@
     function addFileEventListeners(fileElement, file) {
         fileElement.addEventListener('click', () => {
             if (file.isDirectory) {
-                vscode.postMessage({ command: 'loadDirectory', path: `${currentPath}/${file.name}` });
+                vscode.postMessage({ command: 'loadDirectory', path: joinPath(currentPath, file.name) });
             } else {
-                vscode.postMessage({ command: 'performFileAction', action: 'open', path: `${currentPath}/${file.name}` });
+                vscode.postMessage({ command: 'performFileAction', action: 'open', path: joinPath(currentPath, file.name) });
             }
         });
 
@@ -564,7 +571,20 @@
     });
 
     backButton.addEventListener('click', () => {
-        const parentPath = currentPath.split(/[/\\]/).slice(0, -1).join('/') || '/';
+        const separator = currentPath.includes('\\') ? '\\' : '/';
+        const parts = currentPath.split(/[/\\]/);
+        let parentPath = parts.slice(0, -1).join(separator);
+
+        // Handle Windows drive letter case: C: -> C:\
+        if (parentPath.match(/^[a-zA-Z]:$/)) {
+            parentPath = parentPath + separator;
+        }
+
+        // If path is empty or just a separator, stay at root
+        if (!parentPath) {
+            parentPath = separator;
+        }
+
         vscode.postMessage({ command: 'loadDirectory', path: parentPath });
     });
 

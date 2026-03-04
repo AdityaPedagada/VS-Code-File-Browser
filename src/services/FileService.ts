@@ -7,19 +7,26 @@ import { FileInfo, FileProperties, IFileService } from '../types';
 export class FileService implements IFileService {
     async readDirectory(directoryPath: string): Promise<FileInfo[]> {
         const files = await fs.promises.readdir(directoryPath, { withFileTypes: true });
-        const fileDetails = await Promise.all(
-            files.map(async (file) => {
+        const fileDetails: FileInfo[] = [];
+
+        for (const file of files) {
+            try {
                 const filePath = path.join(directoryPath, file.name);
                 const stats = await fs.promises.stat(filePath);
-                return {
+                fileDetails.push({
                     name: file.name,
                     isDirectory: file.isDirectory(),
                     lastModified: stats.mtime.toISOString(),
                     type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
                     size: stats.size
-                };
-            })
-        );
+                });
+            } catch (error) {
+                // Skip files that can't be accessed (permission denied, system files, etc.)
+                console.warn(`Skipping inaccessible file: ${file.name}`, error);
+                continue;
+            }
+        }
+
         return fileDetails;
     }
 
@@ -66,20 +73,30 @@ export class FileService implements IFileService {
 
     async searchFiles(directoryPath: string, query: string): Promise<FileInfo[]> {
         const files = await fs.promises.readdir(directoryPath, { withFileTypes: true });
-        const searchResults = files
-            .filter(file => file.name.toLowerCase().includes(query.toLowerCase()))
-            .map(file => {
+        const searchResults: FileInfo[] = [];
+
+        for (const file of files) {
+            try {
+                if (!file.name.toLowerCase().includes(query.toLowerCase())) {
+                    continue;
+                }
                 const filePath = path.join(directoryPath, file.name);
-                const stats = fs.statSync(filePath);
-                return {
+                const stats = await fs.promises.stat(filePath);
+                searchResults.push({
                     name: file.name,
                     isDirectory: file.isDirectory(),
                     path: filePath,
                     lastModified: stats.mtime.toISOString(),
                     type: file.isDirectory() ? 'Directory' : path.extname(file.name) || 'File',
                     size: stats.size
-                };
-            });
+                });
+            } catch (error) {
+                // Skip inaccessible files
+                console.warn(`Skipping inaccessible file: ${file.name}`, error);
+                continue;
+            }
+        }
+
         return searchResults;
     }
 
