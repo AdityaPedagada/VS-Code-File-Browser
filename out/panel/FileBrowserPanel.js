@@ -60,6 +60,9 @@ class FileBrowserPanel {
         this._cutPath = '';
         this._folderSizeCancellation = { isCancelled: false };
         this._isCalculatingSize = false;
+        this._searchCancellation = { isCancelled: false };
+        this._isSearching = false;
+        this._currentSearchQuery = '';
         this._panel = panel;
         this._extensionUri = extensionUri;
         this.configService = configService;
@@ -93,9 +96,50 @@ class FileBrowserPanel {
                 case 'performFileAction':
                     yield this._performFileAction(message.action, message.path);
                     return;
-                case 'searchFiles':
-                    const searchResults = yield this.fileService.searchFiles(message.path, message.query);
-                    this._panel.webview.postMessage({ command: 'updateSearchResults', results: searchResults });
+                case 'startSearch':
+                    // Start recursive search from current directory
+                    this._isSearching = true;
+                    this._currentSearchQuery = message.query;
+                    this._searchCancellation = { isCancelled: false };
+                    // Tell frontend to show search mode
+                    this._panel.webview.postMessage({
+                        command: 'enterSearchMode',
+                        query: message.query,
+                        directory: message.directory
+                    });
+                    // Start searching with streaming results
+                    const allResults = [];
+                    yield this.fileService.searchFilesRecursive(message.directory, message.query, 
+                    // On each result found
+                    (file) => {
+                        allResults.push(file);
+                        this._panel.webview.postMessage({
+                            command: 'addSearchResult',
+                            file: file
+                        });
+                    }, 
+                    // On progress
+                    (processed, found) => {
+                        this._panel.webview.postMessage({
+                            command: 'updateSearchProgress',
+                            processed: processed,
+                            found: found
+                        });
+                    }, this._searchCancellation);
+                    this._panel.webview.postMessage({
+                        command: 'searchComplete',
+                        totalFound: allResults.length
+                    });
+                    this._isSearching = false;
+                    return;
+                case 'cancelSearch':
+                    this._searchCancellation.isCancelled = true;
+                    this._isSearching = false;
+                    this._panel.webview.postMessage({ command: 'searchCancelled' });
+                    return;
+                case 'exitSearchMode':
+                    this._searchCancellation.isCancelled = true;
+                    this._isSearching = false;
                     return;
             }
         });
@@ -127,9 +171,10 @@ class FileBrowserPanel {
                 <input type="text" id="current-path" placeholder="Enter path...">
                 <button id="go-button">Go</button>
                 <input type="text" id="search-box" placeholder="Search files...">
+                <button id="global-search" class="codicon codicon-search" title="Global Search (recursive)"></button>
                 <button id="new-file" class="codicon codicon-new-file"></button>
                 <button id="new-folder" class="codicon codicon-new-folder"></button>
-                <button id="toggle-view" class="codicon codicon-list-flat"></button>
+                <button id="toggle-view" class="codicon codicon-layout" title="Toggle Grid/List View"></button>
                 <div class="sort-dropdown">
                     <button id="sort-button" class="codicon codicon-sort-precedence"></button>
                     <div class="sort-menu">
@@ -141,6 +186,34 @@ class FileBrowserPanel {
                         <button id="sort-direction"></button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Global Search Header (hidden by default) -->
+            <div id="search-header" style="display: none;">
+                <button id="search-back-button" class="codicon codicon-arrow-left"></button>
+                <div class="search-input-wrapper">
+                    <input type="text" id="global-search-box" placeholder="Search in subfolders...">
+                    <button id="global-search-submit" class="codicon codicon-search"></button>
+                </div>
+                <button id="global-search-cancel" class="codicon codicon-close" title="Cancel search"></button>
+                <button id="search-toggle-view" class="codicon codicon-layout" title="Toggle Grid/List View"></button>
+                <div class="sort-dropdown">
+                    <button id="search-sort-button" class="codicon codicon-sort-precedence"></button>
+                    <div class="sort-menu">
+                        <button class="sort-option" data-sort="name">Name</button>
+                        <button class="sort-option" data-sort="modified">Modified Date</button>
+                        <button class="sort-option" data-sort="type">Type</button>
+                        <button class="sort-option" data-sort="size">Size</button>
+                        <hr>
+                        <button id="search-sort-direction"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Progress Bar (hidden by default) -->
+            <div id="search-progress-container" style="display: none;">
+                <div id="search-progress-bar"></div>
+                <span id="search-progress-text">Searching...</span>
             </div>
 
             <div id="file-space">

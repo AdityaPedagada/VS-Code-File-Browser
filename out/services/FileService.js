@@ -36,6 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const child_process_1 = require("child_process");
+const util_1 = require("util");
+const execAsync = (0, util_1.promisify)(child_process_1.exec);
 class FileService {
     readDirectory(directoryPath) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -197,6 +200,166 @@ class FileService {
             });
             yield calculateSize(folderPath);
             return totalSize;
+        });
+    }
+    searchFilesRecursive(directoryPath, query, onResult, onProgress, cancellationToken, maxResults = 1000, maxFilesToProcess = 50000) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const results = [];
+            let processedItems = 0;
+            const queryLower = query.toLowerCase();
+            // Small delay to prevent blocking
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const searchDirectory = (dirPath) => __awaiter(this, void 0, void 0, function* () {
+                // Check limits and cancellation
+                if (cancellationToken === null || cancellationToken === void 0 ? void 0 : cancellationToken.isCancelled) {
+                    return false;
+                }
+                if (results.length >= maxResults) {
+                    return false; // Stop if max results reached
+                }
+                if (processedItems >= maxFilesToProcess) {
+                    return false; // Stop if max files processed
+                }
+                try {
+                    const entries = yield fs.promises.readdir(dirPath, { withFileTypes: true });
+                    for (const entry of entries) {
+                        // Check limits and cancellation
+                        if (cancellationToken === null || cancellationToken === void 0 ? void 0 : cancellationToken.isCancelled) {
+                            return false;
+                        }
+                        if (results.length >= maxResults) {
+                            return false;
+                        }
+                        if (processedItems >= maxFilesToProcess) {
+                            return false;
+                        }
+                        const fullPath = path.join(dirPath, entry.name);
+                        try {
+                            if (entry.name.toLowerCase().includes(queryLower)) {
+                                const stats = yield fs.promises.stat(fullPath);
+                                const fileInfo = {
+                                    name: entry.name,
+                                    isDirectory: entry.isDirectory(),
+                                    lastModified: stats.mtime.toISOString(),
+                                    type: entry.isDirectory() ? 'Directory' : path.extname(entry.name) || 'File',
+                                    size: stats.size,
+                                    path: fullPath
+                                };
+                                results.push(fileInfo);
+                                if (onResult) {
+                                    onResult(fileInfo);
+                                }
+                            }
+                            if (entry.isDirectory()) {
+                                const shouldContinue = yield searchDirectory(fullPath);
+                                if (!shouldContinue) {
+                                    return false;
+                                }
+                            }
+                        }
+                        catch (_a) {
+                            // Skip inaccessible files
+                            continue;
+                        }
+                        processedItems++;
+                        // Report progress every 100 files
+                        if (processedItems % 100 === 0) {
+                            if (onProgress) {
+                                onProgress(processedItems, results.length);
+                            }
+                            // Small delay every batch to prevent complete blocking
+                            yield delay(1);
+                        }
+                    }
+                }
+                catch (_b) {
+                    // Skip inaccessible directories
+                }
+                return true;
+            });
+            yield searchDirectory(directoryPath);
+            // Final progress update
+            if (onProgress) {
+                onProgress(processedItems, results.length);
+            }
+            return results;
+        });
+    }
+    // Optimized search using native OS commands (much faster)
+    searchFilesNative(directoryPath, query, onResult, onProgress, cancellationToken, maxResults = 1000) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const results = [];
+            const platform = process.platform;
+            const queryLower = query.toLowerCase();
+            let isLimited = false;
+            return new Promise((resolve) => {
+                let command;
+                if (platform === 'win32') {
+                    // Windows: use dir with recursive search
+                    command = `dir /s /b /a "${directoryPath}"`;
+                }
+                else {
+                    // Unix/Mac: use find
+                    command = `find "${directoryPath}" -type f -o -type d`;
+                }
+                let processed = 0;
+                const child = (0, child_process_1.exec)(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout) => __awaiter(this, void 0, void 0, function* () {
+                    if (error) {
+                        console.error('Search error:', error);
+                        resolve({ results, limited: isLimited });
+                        return;
+                    }
+                    const lines = stdout.split('\n').filter(line => line.trim());
+                    for (const line of lines) {
+                        // Check limits
+                        if (results.length >= maxResults) {
+                            isLimited = true;
+                            break;
+                        }
+                        if (cancellationToken === null || cancellationToken === void 0 ? void 0 : cancellationToken.isCancelled) {
+                            break;
+                        }
+                        const fileName = path.basename(line);
+                        if (fileName.toLowerCase().includes(queryLower)) {
+                            try {
+                                const stats = yield fs.promises.stat(line);
+                                const fileInfo = {
+                                    name: fileName,
+                                    isDirectory: stats.isDirectory(),
+                                    lastModified: stats.mtime.toISOString(),
+                                    type: stats.isDirectory() ? 'Directory' : path.extname(fileName) || 'File',
+                                    size: stats.size,
+                                    path: line
+                                };
+                                results.push(fileInfo);
+                                if (onResult) {
+                                    onResult(fileInfo);
+                                }
+                            }
+                            catch (_a) {
+                                // Skip inaccessible files
+                            }
+                        }
+                        processed++;
+                        if (processed % 500 === 0 && onProgress) {
+                            onProgress(processed, results.length);
+                        }
+                    }
+                    if (onProgress) {
+                        onProgress(processed, results.length);
+                    }
+                    resolve({ results, limited: isLimited });
+                }));
+                // Handle cancellation
+                if (cancellationToken) {
+                    const originalCheck = () => {
+                        if (cancellationToken.isCancelled) {
+                            child.kill();
+                        }
+                    };
+                    setInterval(originalCheck, 100);
+                }
+            });
         });
     }
 }

@@ -97,6 +97,47 @@ export interface SearchFilesMessage extends WebviewMessage {
     query: string;
 }
 
+export interface StartSearchMessage extends WebviewMessage {
+    command: 'startSearch';
+    query: string;
+    directory: string;
+}
+
+export interface CancelSearchMessage extends WebviewMessage {
+    command: 'cancelSearch';
+}
+
+export interface ExitSearchModeMessage extends WebviewMessage {
+    command: 'exitSearchMode';
+}
+
+export interface AddSearchResultMessage {
+    command: 'addSearchResult';
+    file: FileInfo;
+}
+
+export interface UpdateSearchProgressMessage {
+    command: 'updateSearchProgress';
+    processed: number;
+    found: number;
+}
+
+export interface SearchCompleteMessage {
+    command: 'searchComplete';
+    totalFound: number;
+    limited?: boolean;
+}
+
+export interface SearchCancelledMessage {
+    command: 'searchCancelled';
+}
+
+export interface EnterSearchModeMessage {
+    command: 'enterSearchMode';
+    query: string;
+    directory: string;
+}
+
 export interface UpdateFilesMessage {
     command: 'updateFiles';
     files: FileInfo[];
@@ -122,13 +163,21 @@ export type IncomingWebviewMessage =
     | LoadDirectoryMessage
     | GetDirectorySuggestionsMessage
     | PerformFileActionMessage
-    | SearchFilesMessage;
+    | SearchFilesMessage
+    | StartSearchMessage
+    | CancelSearchMessage
+    | ExitSearchModeMessage;
 
 export type OutgoingWebviewMessage =
     | UpdateFilesMessage
     | UpdateSuggestionsMessage
     | UpdateSearchResultsMessage
-    | RestoreStateMessage;
+    | RestoreStateMessage
+    | AddSearchResultMessage
+    | UpdateSearchProgressMessage
+    | SearchCompleteMessage
+    | SearchCancelledMessage
+    | EnterSearchModeMessage;
 
 // ============= Configuration Types =============
 

@@ -36,7 +36,7 @@
     currentSearchQuery = state.searchQuery || '';
     isGridView = state.isGridView !== undefined ? state.isGridView : true;
 
-    toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-grid'}`;
+    toggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-layout'}`;
     searchBox.value = currentSearchQuery;
 
     window.addEventListener('message', event => {
@@ -45,7 +45,11 @@
             case 'updateFiles':
                 allFiles = message.files;
                 updateFileView(message.files);
-                currentPath = message.path;
+                // Normalize path - remove trailing separator for consistency
+                const sep = message.path.includes('\\') ? '\\' : '/';
+                currentPath = message.path.endsWith(sep) && message.path.length > 1
+                    ? message.path.slice(0, -1)
+                    : message.path;
                 currentPathInput.value = currentPath;
                 platform = message.platform;
                 saveState();
@@ -64,6 +68,21 @@
                 break;
             case 'hideLoading':
                 hideLoadingModal();
+                break;
+            case 'enterSearchMode':
+                enterSearchMode(message.query, message.directory);
+                break;
+            case 'addSearchResult':
+                addSearchResult(message.file);
+                break;
+            case 'updateSearchProgress':
+                updateSearchProgress(message.processed, message.found);
+                break;
+            case 'searchComplete':
+                searchComplete(message.totalFound);
+                break;
+            case 'searchCancelled':
+                searchCancelled();
                 break;
         }
     });
@@ -111,6 +130,261 @@
             loadingModal.remove();
             loadingModal = null;
         }
+    }
+
+    // Search mode variables
+    let isSearchMode = false;
+    let searchResults = [];
+    let searchDirectory = '';
+    let searchQuery = '';
+
+    // Search mode functions
+    function enterSearchMode(query, directory) {
+        isSearchMode = true;
+        searchResults = [];
+        searchQuery = query;
+        searchDirectory = directory;
+
+        // Hide toolbar, show search header (but NOT progress bar yet)
+        document.getElementById('toolbar').style.display = 'none';
+        document.getElementById('search-header').style.display = 'flex';
+        document.getElementById('search-progress-container').style.display = 'none';
+
+        // Show cancel button, hide submit button while idle
+        const cancelBtn = document.getElementById('global-search-cancel');
+        const submitBtn = document.getElementById('global-search-submit');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'flex';
+
+        // Initialize sort direction button text
+        const searchSortDirection = document.getElementById('search-sort-direction');
+        if (searchSortDirection) {
+            searchSortDirection.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
+        }
+
+        // Update progress text
+        const progressText = document.getElementById('search-progress-text');
+        if (progressText) {
+            progressText.textContent = 'Enter search query and press Enter';
+        }
+
+        // Clear file container
+        fileContainer.innerHTML = '';
+    }
+
+    // Render search results with sorting and view mode
+    function renderSearchResults() {
+        // Clear file container
+        fileContainer.innerHTML = '';
+
+        if (searchResults.length === 0) {
+            fileContainer.innerHTML = '<div class="no-results">No files found</div>';
+            return;
+        }
+
+        // Sort the results
+        const sortedResults = sortFiles([...searchResults]);
+
+        // Render each result
+        sortedResults.forEach(file => {
+            const fileElement = isGridView ? createGridItem(file) : createListItem(file);
+            fileContainer.appendChild(fileElement);
+        });
+    }
+
+    function addSearchResult(file) {
+        searchResults.push(file);
+
+        // Remove the "Searching..." message if it exists
+        const statusEl = fileContainer.querySelector('.search-status');
+        if (statusEl) {
+            statusEl.remove();
+        }
+
+        // Add the result
+        const fileElement = isGridView ? createGridItem(file) : createListItem(file);
+        fileContainer.appendChild(fileElement);
+    }
+
+    function updateSearchProgress(processed, found) {
+        const progressBar = document.getElementById('search-progress-bar');
+        const progressText = document.getElementById('search-progress-text');
+
+        if (progressBar && progressText) {
+            progressText.textContent = 'Processed ' + processed + ' items, found ' + found + ' matches...';
+        }
+    }
+
+    function searchComplete(totalFound) {
+        // Don't set isSearchMode to false here - we're still in search mode showing results
+        // Only exit search mode when user explicitly exits or clicks a folder
+
+        // Show idle state - submit button visible
+        showIdleState();
+
+        const progressContainer = document.getElementById('search-progress-container');
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+
+        if (searchResults.length === 0) {
+            fileContainer.innerHTML = '<div class="no-results">No files found matching "' + searchQuery + '"</div>';
+        }
+    }
+
+    function searchCancelled() {
+        // Don't set isSearchMode to false here - let exitSearchMode handle it
+        // isSearchMode will be set to false when user actually exits
+
+        // Show idle state - submit button visible
+        showIdleState();
+
+        const progressContainer = document.getElementById('search-progress-container');
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+    }
+
+    function exitSearchMode() {
+        isSearchMode = false;
+
+        // Show toolbar, hide search header
+        document.getElementById('toolbar').style.display = 'flex';
+        document.getElementById('search-header').style.display = 'none';
+        document.getElementById('search-progress-container').style.display = 'none';
+
+        // Reload current directory
+        vscode.postMessage({ command: 'loadDirectory', path: currentPath });
+    }
+
+    // Global search event listeners
+    const globalSearchButton = document.getElementById('global-search');
+    const searchBackButton = document.getElementById('search-back-button');
+    const globalSearchSubmit = document.getElementById('global-search-submit');
+    const globalSearchCancel = document.getElementById('global-search-cancel');
+    const globalSearchBox = document.getElementById('global-search-box');
+    const searchToggleViewButton = document.getElementById('search-toggle-view');
+    const searchSortButton = document.getElementById('search-sort-button');
+
+    // Toggle view button in search screen
+    if (searchToggleViewButton) {
+        searchToggleViewButton.addEventListener('click', () => {
+            isGridView = !isGridView;
+            searchToggleViewButton.className = `codicon ${isGridView ? 'codicon-list-flat' : 'codicon-layout'}`;
+            // Re-render search results with new view
+            if (searchResults.length > 0) {
+                renderSearchResults();
+            }
+        });
+    }
+
+    // Sort button in search screen
+    if (searchSortButton) {
+        searchSortButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // Sort options in search screen
+    const searchSortOptions = document.querySelectorAll('#search-header .sort-option');
+    searchSortOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const sortType = option.getAttribute('data-sort');
+            if (currentSortOption === sortType) {
+                // Toggle direction if same option clicked
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortOption = sortType;
+                sortDirection = 'asc';
+            }
+            // Update sort direction button text
+            const searchSortDirection = document.getElementById('search-sort-direction');
+            if (searchSortDirection) {
+                searchSortDirection.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
+            }
+            // Re-render search results with new sort
+            if (searchResults.length > 0) {
+                renderSearchResults();
+            }
+        });
+    });
+
+    // Sort direction in search screen
+    const searchSortDirection = document.getElementById('search-sort-direction');
+    if (searchSortDirection) {
+        searchSortDirection.addEventListener('click', () => {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            searchSortDirection.textContent = sortDirection === 'asc' ? 'Ascending' : 'Descending';
+            if (searchResults.length > 0) {
+                renderSearchResults();
+            }
+        });
+    }
+
+    if (globalSearchButton) {
+        globalSearchButton.addEventListener('click', () => {
+            enterSearchMode('', currentPath);
+            document.getElementById('global-search-box').focus();
+        });
+    }
+
+    if (searchBackButton) {
+        searchBackButton.addEventListener('click', () => {
+            vscode.postMessage({ command: 'exitSearchMode' });
+            exitSearchMode();
+        });
+    }
+
+    // Show searching state - cancel button visible, submit hidden, progress bar visible
+    function showSearchingState() {
+        const cancelBtn = document.getElementById('global-search-cancel');
+        const submitBtn = document.getElementById('global-search-submit');
+        const progressText = document.getElementById('search-progress-text');
+        const progressContainer = document.getElementById('search-progress-container');
+        if (cancelBtn) cancelBtn.style.display = 'flex';
+        if (submitBtn) submitBtn.style.display = 'none';
+        if (progressContainer) progressContainer.style.display = 'flex';
+        if (progressText) progressText.textContent = 'Searching...';
+    }
+
+    // Show idle state - submit button visible, cancel hidden, progress bar hidden
+    function showIdleState() {
+        const cancelBtn = document.getElementById('global-search-cancel');
+        const submitBtn = document.getElementById('global-search-submit');
+        const progressContainer = document.getElementById('search-progress-container');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'flex';
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'flex';
+    }
+
+    if (globalSearchSubmit) {
+        globalSearchSubmit.addEventListener('click', () => {
+            const query = globalSearchBox.value.trim();
+            if (query) {
+                showSearchingState();
+                vscode.postMessage({ command: 'startSearch', query: query, directory: currentPath });
+            }
+        });
+    }
+
+    if (globalSearchCancel) {
+        globalSearchCancel.addEventListener('click', () => {
+            vscode.postMessage({ command: 'cancelSearch' });
+        });
+    }
+
+    if (globalSearchBox) {
+        globalSearchBox.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const query = globalSearchBox.value.trim();
+                if (query) {
+                    showSearchingState();
+                    vscode.postMessage({ command: 'startSearch', query: query, directory: currentPath });
+                }
+            }
+        });
     }
 
     function saveState() {
@@ -287,7 +561,9 @@
             } else {
                 actionItem.addEventListener('click', () => {
                     let command = action.toLowerCase().replaceAll(' ', '');
-                    vscode.postMessage({ command: 'performFileAction', action: command, path: joinPath(currentPath, file.name) });
+                    // Use file.path if available (from search results), otherwise construct from currentPath
+                    const filePath = file.path || joinPath(currentPath, file.name);
+                    vscode.postMessage({ command: 'performFileAction', action: command, path: filePath });
                     document.body.removeChild(contextMenu);
                     currentContextMenu = null;
                 });
@@ -415,11 +691,25 @@
 
 
     function addFileEventListeners(fileElement, file) {
+        // Use file.path if available (from search results), otherwise construct from currentPath
+        const filePath = file.path || joinPath(currentPath, file.name);
+
         fileElement.addEventListener('click', () => {
             if (file.isDirectory) {
-                vscode.postMessage({ command: 'loadDirectory', path: joinPath(currentPath, file.name) });
+                // If in search mode, switch to main header without reloading search directory
+                if (isSearchMode) {
+                    isSearchMode = false;
+                    document.getElementById('toolbar').style.display = 'flex';
+                    document.getElementById('search-header').style.display = 'none';
+                    document.getElementById('search-progress-container').style.display = 'none';
+                }
+                // Update currentPath immediately before navigation
+                currentPath = filePath;
+                currentPathInput.value = currentPath;
+                // Load the clicked folder
+                vscode.postMessage({ command: 'loadDirectory', path: filePath });
             } else {
-                vscode.postMessage({ command: 'performFileAction', action: 'open', path: joinPath(currentPath, file.name) });
+                vscode.postMessage({ command: 'performFileAction', action: 'open', path: filePath });
             }
         });
 
@@ -617,16 +907,38 @@
     });
 
     goButton.addEventListener('click', () => {
-        let path = currentPathInput.value;
-        if (!path.endsWith(path.sep)) {
-            path += path.sep;
+        let path = currentPathInput.value.trim();
+        const separator = path.includes('\\') ? '\\' : '/';
+
+        // Normalize path - remove trailing separator for comparison
+        let normalizedInput = path.endsWith(separator) ? path.slice(0, -1) : path;
+        let normalizedCurrent = currentPath.endsWith(separator) ? currentPath.slice(0, -1) : currentPath;
+
+        // Only add separator if the input is different from current path
+        if (normalizedInput !== normalizedCurrent) {
+            if (!path.endsWith(separator)) {
+                path += separator;
+            }
         }
+
+        // Update currentPath immediately to prevent race conditions
+        currentPath = path;
+        currentPathInput.value = currentPath;
+
         vscode.postMessage({ command: 'loadDirectory', path: path });
     });
 
     backButton.addEventListener('click', () => {
+        // Normalize currentPath - remove trailing separator for proper navigation
+        let normalizedPath = currentPath;
         const separator = currentPath.includes('\\') ? '\\' : '/';
-        const parts = currentPath.split(/[/\\]/);
+
+        // Remove trailing separator if present
+        if (normalizedPath.endsWith(separator) && normalizedPath.length > 1) {
+            normalizedPath = normalizedPath.slice(0, -1);
+        }
+
+        const parts = normalizedPath.split(/[/\\]/);
         let parentPath = parts.slice(0, -1).join(separator);
 
         // Handle Windows drive letter case: C: -> C:\
@@ -638,6 +950,10 @@
         if (!parentPath) {
             parentPath = separator;
         }
+
+        // Update currentPath immediately to prevent race conditions
+        currentPath = parentPath;
+        currentPathInput.value = currentPath;
 
         vscode.postMessage({ command: 'loadDirectory', path: parentPath });
     });
