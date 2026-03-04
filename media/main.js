@@ -56,8 +56,62 @@
             case 'updateSearchResults':
                 updateFileView(message.results);
                 break;
+            case 'showLoading':
+                showLoadingModal(message.message);
+                break;
+            case 'updateLoadingProgress':
+                updateLoadingProgress(message.message);
+                break;
+            case 'hideLoading':
+                hideLoadingModal();
+                break;
         }
     });
+
+    // Loading modal functions
+    let loadingModal = null;
+
+    function showLoadingModal(message) {
+        if (loadingModal) {
+            loadingModal.remove();
+        }
+
+        loadingModal = document.createElement('div');
+        loadingModal.id = 'loading-modal';
+        loadingModal.innerHTML = `
+            <div class="loading-overlay"></div>
+            <div class="loading-content">
+                <button class="loading-close-btn" title="Close (calculation will continue)">X</button>
+                <div class="loading-spinner"></div>
+                <p class="loading-message">${message}</p>
+                <p class="loading-progress"></p>
+            </div>
+        `;
+
+        // Add close button handler - only closes modal, doesn't stop calculation
+        const closeBtn = loadingModal.querySelector('.loading-close-btn');
+        closeBtn.addEventListener('click', () => {
+            hideLoadingModal();
+        });
+
+        document.body.appendChild(loadingModal);
+    }
+
+    function updateLoadingProgress(message) {
+        if (loadingModal) {
+            const progressEl = loadingModal.querySelector('.loading-progress');
+            if (progressEl) {
+                progressEl.textContent = message;
+            }
+        }
+    }
+
+    function hideLoadingModal() {
+        if (loadingModal) {
+            loadingModal.remove();
+            loadingModal = null;
+        }
+    }
 
     function saveState() {
         vscode.setState({

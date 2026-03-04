@@ -15,6 +15,8 @@ export class FileBrowserPanel {
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _cutPath: string = '';
+    private _folderSizeCancellation: { isCancelled: boolean } = { isCancelled: false };
+    private _isCalculatingSize: boolean = false;
 
     // Services
     private readonly fileService: FileService;
@@ -329,20 +331,89 @@ export class FileBrowserPanel {
         await this._loadDirectory(destinationPath);
     }
 
-    private _showFileProperties(filePath: string): void {
-        this.fileService.getFileStats(filePath).then((properties) => {
+    private async _showFileProperties(filePath: string): Promise<void> {
+        try {
+            const properties = await this.fileService.getFileStats(filePath);
+            const isDirectory = await this.fileService.isDirectory(filePath);
+            let sizeInfo = `Size: ${properties.size} bytes`;
+
+            // If it's a directory, calculate folder size with progress
+            if (isDirectory) {
+                // Check if calculation is already in progress
+                if (this._isCalculatingSize) {
+                    vscode.window.showWarningMessage('A folder size calculation is already in progress. Please wait for it to complete.');
+                    return;
+                }
+
+                this._isCalculatingSize = true;
+                this._folderSizeCancellation = { isCancelled: false };
+
+                // Show status bar item
+                const loadingItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+                loadingItem.text = '$(loading~spin) Calculating folder size...';
+                loadingItem.show();
+
+                // Send loading message to webview to show modal
+                this._panel.webview.postMessage({
+                    command: 'showLoading',
+                    message: 'Calculating folder size...'
+                });
+
+                // Calculate size with cancellation support
+                const folderSize = await this.fileService.calculateFolderSize(
+                    filePath,
+                    (current) => {
+                        loadingItem.text = `$(loading~spin) Processed ${current} items...`;
+                        this._panel.webview.postMessage({
+                            command: 'updateLoadingProgress',
+                            message: `Processed ${current} items...`
+                        });
+                    },
+                    this._folderSizeCancellation
+                );
+
+                // Cleanup
+                loadingItem.dispose();
+
+                // Hide loading modal
+                this._panel.webview.postMessage({
+                    command: 'hideLoading'
+                });
+
+                if (this._folderSizeCancellation.isCancelled) {
+                    // Still show result even if modal was closed
+                    sizeInfo = `Size: Calculation cancelled`;
+                    this._isCalculatingSize = false;
+                } else {
+                    sizeInfo = `Size: ${this._formatSize(folderSize)} (${folderSize} bytes)`;
+                    this._isCalculatingSize = false;
+                }
+            }
+
             const info = `
                 Name: ${properties.name}
                 Path: ${properties.path}
-                Size: ${properties.size} bytes
+                ${sizeInfo}
                 Created: ${properties.created}
                 Modified: ${properties.modified}
                 Permissions: ${properties.permissions}
             `;
+
             vscode.window.showInformationMessage(info, { modal: true });
-        }).catch((error) => {
+        } catch (error) {
+            // Hide loading on error
+            this._panel.webview.postMessage({ command: 'hideLoading' });
+            this._isCalculatingSize = false;
             vscode.window.showErrorMessage(`Error getting file properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        });
+        }
+    }
+
+    private _formatSize(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     private _openInExplorer(filePath: string): void {

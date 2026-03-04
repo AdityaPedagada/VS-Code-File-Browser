@@ -157,6 +157,48 @@ class FileService {
             return stats.isDirectory();
         });
     }
+    calculateFolderSize(folderPath, onProgress, cancellationToken) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let totalSize = 0;
+            let processedItems = 0;
+            const calculateSize = (dirPath) => __awaiter(this, void 0, void 0, function* () {
+                if (cancellationToken === null || cancellationToken === void 0 ? void 0 : cancellationToken.isCancelled) {
+                    return;
+                }
+                try {
+                    const entries = yield fs.promises.readdir(dirPath, { withFileTypes: true });
+                    for (const entry of entries) {
+                        if (cancellationToken === null || cancellationToken === void 0 ? void 0 : cancellationToken.isCancelled) {
+                            return;
+                        }
+                        const fullPath = path.join(dirPath, entry.name);
+                        try {
+                            if (entry.isDirectory()) {
+                                yield calculateSize(fullPath);
+                            }
+                            else {
+                                const stats = yield fs.promises.stat(fullPath);
+                                totalSize += stats.size;
+                            }
+                        }
+                        catch (_a) {
+                            // Skip inaccessible files
+                            continue;
+                        }
+                        processedItems++;
+                        if (onProgress) {
+                            onProgress(processedItems, -1); // -1 indicates unknown total
+                        }
+                    }
+                }
+                catch (_b) {
+                    // Skip inaccessible directories
+                }
+            });
+            yield calculateSize(folderPath);
+            return totalSize;
+        });
+    }
 }
 exports.FileService = FileService;
 //# sourceMappingURL=FileService.js.map

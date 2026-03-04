@@ -113,4 +113,53 @@ export class FileService implements IFileService {
         const stats = await fs.promises.stat(filePath);
         return stats.isDirectory();
     }
+
+    async calculateFolderSize(
+        folderPath: string,
+        onProgress?: (current: number, total: number) => void,
+        cancellationToken?: { isCancelled: boolean }
+    ): Promise<number> {
+        let totalSize = 0;
+        let processedItems = 0;
+
+        const calculateSize = async (dirPath: string): Promise<void> => {
+            if (cancellationToken?.isCancelled) {
+                return;
+            }
+
+            try {
+                const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+                for (const entry of entries) {
+                    if (cancellationToken?.isCancelled) {
+                        return;
+                    }
+
+                    const fullPath = path.join(dirPath, entry.name);
+
+                    try {
+                        if (entry.isDirectory()) {
+                            await calculateSize(fullPath);
+                        } else {
+                            const stats = await fs.promises.stat(fullPath);
+                            totalSize += stats.size;
+                        }
+                    } catch {
+                        // Skip inaccessible files
+                        continue;
+                    }
+
+                    processedItems++;
+                    if (onProgress) {
+                        onProgress(processedItems, -1); // -1 indicates unknown total
+                    }
+                }
+            } catch {
+                // Skip inaccessible directories
+            }
+        };
+
+        await calculateSize(folderPath);
+        return totalSize;
+    }
 }
