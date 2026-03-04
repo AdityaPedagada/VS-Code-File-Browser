@@ -169,8 +169,17 @@ export class FileBrowserPanel {
                 platform: process.platform
             });
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-            vscode.window.showErrorMessage(`Error loading directory: ${errorMessage}`);
+            if (error instanceof Error) {
+                if (error.message.includes('EPERM') || error.message.includes('EACCES')) {
+                    vscode.window.showWarningMessage(
+                        `Access denied: "${directoryPath}". Run VS Code as Administrator to access this folder.`
+                    );
+                } else {
+                    vscode.window.showErrorMessage(`Error loading directory: ${error.message}`);
+                }
+            } else {
+                vscode.window.showErrorMessage(`Error loading directory: An unknown error occurred`);
+            }
         }
     }
 
