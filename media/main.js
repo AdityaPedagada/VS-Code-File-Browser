@@ -22,6 +22,278 @@
     let currentSearchQuery = '';
     let platform;
     let pathSeparator = '/';
+    let addressSuggestions = null;
+    let currentDropdownPath = '';
+    let isAddressBarEditable = false;
+
+    // Address bar elements
+    const addressBar = document.getElementById('address-bar');
+    const addressBarContainer = document.getElementById('address-bar-container');
+    const addressEditBtn = document.getElementById('address-edit-btn');
+    const addressCloseBtn = document.getElementById('address-close-btn');
+
+    // Edit button - show text input
+    if (addressEditBtn) {
+        addressEditBtn.addEventListener('click', () => {
+            enableAddressBarEdit();
+        });
+    }
+
+    // Close button - hide text input and show address bar
+    if (addressCloseBtn) {
+        addressCloseBtn.addEventListener('click', () => {
+            disableAddressBarEdit();
+        });
+    }
+
+    // Build the address bar with clickable folders
+    function updateAddressBar() {
+        if (!addressBar) return;
+
+        const path = currentPath;
+        const sep = path.includes('\\') ? '\\' : '/';
+        pathSeparator = sep;
+
+        // Split path into parts
+        let parts = path.split(/[/\\]/).filter(p => p);
+
+        addressBar.innerHTML = '';
+        addressBar.className = 'address-bar';
+
+        // Handle Windows drive letter
+        let driveLetter = '';
+        if (path.match(/^[a-zA-Z]:/)) {
+            driveLetter = path.substring(0, 2);
+            // Remove drive letter from parts
+            parts = path.substring(2).split(/[/\\]/).filter(p => p);
+        }
+
+        // Build path so far
+        let pathSoFar = driveLetter;
+
+        // Add drive letter as first clickable item
+        if (driveLetter) {
+            // Capture drive path for closure - use path without trailing separator if only drive
+            let drivePath = path;
+            if (parts.length === 0) {
+                // Just the drive, no trailing separator
+                drivePath = driveLetter;
+            } else {
+                drivePath = driveLetter + sep;
+            }
+
+            const driveSpan = document.createElement('span');
+            driveSpan.className = 'address-folder';
+            if (parts.length === 0) {
+                driveSpan.classList.add('current');
+            }
+            driveSpan.textContent = driveLetter;
+            driveSpan.title = driveLetter;
+            driveSpan.dataset.path = drivePath;
+            driveSpan.addEventListener('click', () => {
+                navigateToAddress(drivePath);
+            });
+            addressBar.appendChild(driveSpan);
+
+            // Add separator after drive only if there are more folders
+            if (parts.length > 0) {
+                const sepSpan = document.createElement('span');
+                sepSpan.className = 'address-separator';
+                sepSpan.textContent = sep;
+                sepSpan.dataset.path = drivePath;
+                sepSpan.title = 'Click to see folders';
+                sepSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showAddressDropdown(sepSpan, drivePath);
+                });
+                addressBar.appendChild(sepSpan);
+            }
+        }
+
+        // Add each folder
+        parts.forEach((part, index) => {
+            // Build full path to this folder - capture in local variable for closure
+            const currentPathSoFar = pathSoFar ? joinPath(pathSoFar, part) : part;
+            pathSoFar = currentPathSoFar;
+
+            // Create folder span
+            const folderSpan = document.createElement('span');
+            folderSpan.className = 'address-folder';
+            if (index === parts.length - 1) {
+                folderSpan.classList.add('current');
+            }
+            folderSpan.textContent = part;
+            folderSpan.title = 'Click to open: ' + currentPathSoFar;
+            folderSpan.dataset.path = currentPathSoFar;
+
+            // Add click handler to navigate to this folder - use captured value
+            folderSpan.addEventListener('click', () => {
+                navigateToAddress(currentPathSoFar);
+            });
+
+            addressBar.appendChild(folderSpan);
+
+            // Add separator after this folder (except for last one)
+            if (index < parts.length - 1) {
+                const sepSpan = document.createElement('span');
+                sepSpan.className = 'address-separator';
+                sepSpan.textContent = sep;
+                // Separator path is current folder + separator (for dropdown)
+                const separatorPath = currentPathSoFar + sep;
+                sepSpan.dataset.path = separatorPath;
+                sepSpan.title = 'Click to see folders in: ' + currentPathSoFar;
+                // Click on separator shows dropdown for folders inside current folder
+                sepSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showAddressDropdown(sepSpan, separatorPath);
+                });
+                addressBar.appendChild(sepSpan);
+            }
+        });
+
+        // Scroll to show the end of the path (current folder)
+        setTimeout(() => {
+            addressBar.scrollLeft = addressBar.scrollWidth;
+        }, 0);
+    }
+
+    // Navigate to a specific address
+    function navigateToAddress(path) {
+        currentPath = path;
+        currentPathInput.value = currentPath;
+        updateAddressBar();
+        vscode.postMessage({ command: 'loadDirectory', path: currentPath });
+    }
+
+    // Show dropdown with subfolders
+    function showAddressDropdown(element, folderPath) {
+        // Close any existing dropdown
+        closeAddressSuggestions();
+
+        // Request subfolders from backend
+        currentDropdownPath = folderPath;
+        vscode.postMessage({ command: 'getDirectorySuggestions', path: folderPath + pathSeparator });
+    }
+
+    // Close address suggestions dropdown
+    function closeAddressSuggestions() {
+        if (addressSuggestions) {
+            addressSuggestions.classList.remove('show');
+        }
+    }
+
+    // Close dropdown when clicking outside or on address bar
+    document.addEventListener('click', (e) => {
+        if (addressSuggestions && addressSuggestions.classList.contains('show')) {
+            if (!addressSuggestions.contains(e.target)) {
+                closeAddressSuggestions();
+            }
+        }
+    });
+
+    // Show address suggestions dropdown
+    function showAddressSuggestions(folderPath, folders) {
+        // Create or get suggestions container
+        if (!addressSuggestions) {
+            addressSuggestions = document.createElement('div');
+            addressSuggestions.className = 'address-suggestions';
+            addressBarContainer.appendChild(addressSuggestions);
+        }
+
+        addressSuggestions.innerHTML = '';
+
+        if (folders && folders.length > 0) {
+            folders.forEach(folder => {
+                const item = document.createElement('div');
+                item.className = 'address-suggestion';
+                item.innerHTML = '<i class="codicon codicon-folder"></i><span>' + folder + '</span>';
+                item.addEventListener('click', () => {
+                    // Normalize folderPath - remove trailing separator
+                    let basePath = folderPath;
+                    if (basePath.endsWith('/') || basePath.endsWith('\\')) {
+                        basePath = basePath.slice(0, -1);
+                    }
+                    // Use the folder path directly as it already includes the full path
+                    const newPath = basePath + pathSeparator + folder;
+                    closeAddressSuggestions();
+                    navigateToAddress(newPath);
+                });
+                addressSuggestions.appendChild(item);
+            });
+        } else {
+            const item = document.createElement('div');
+            item.className = 'address-suggestion';
+            item.textContent = 'No subfolders';
+            item.style.cursor = 'default';
+            addressSuggestions.appendChild(item);
+        }
+
+        addressSuggestions.classList.add('show');
+    }
+
+    // Toggle address bar to editable mode
+    function enableAddressBarEdit() {
+        if (isAddressBarEditable) return;
+        isAddressBarEditable = true;
+
+        // Show the input field and close button
+        currentPathInput.style.display = 'block';
+        currentPathInput.value = currentPath;
+        currentPathInput.select();
+
+        // Hide the address bar and edit button
+        addressBar.style.display = 'none';
+        if (addressEditBtn) addressEditBtn.style.display = 'none';
+        if (addressCloseBtn) addressCloseBtn.style.display = 'flex';
+    }
+
+    // Disable address bar edit mode
+    function disableAddressBarEdit() {
+        if (!isAddressBarEditable) return;
+        isAddressBarEditable = false;
+
+        // Hide the input field and close button
+        currentPathInput.style.display = 'none';
+        if (addressCloseBtn) addressCloseBtn.style.display = 'none';
+
+        // Show the address bar and edit button
+        addressBar.style.display = 'flex';
+        if (addressEditBtn) addressEditBtn.style.display = 'flex';
+        updateAddressBar();
+    }
+
+    // Click on empty space in address bar to enable editing
+    if (addressBar) {
+        addressBar.addEventListener('click', (e) => {
+            // Only enable edit if clicking on empty space (not on folders)
+            if (e.target === addressBar || e.target.classList.contains('address-path')) {
+                enableAddressBarEdit();
+            }
+        });
+    }
+
+    // Handle address bar input keydown
+    if (currentPathInput) {
+        currentPathInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const newPath = currentPathInput.value.trim();
+                if (newPath && newPath !== currentPath) {
+                    navigateToAddress(newPath);
+                }
+                disableAddressBarEdit();
+            } else if (e.key === 'Escape') {
+                disableAddressBarEdit();
+            }
+        });
+
+        currentPathInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (isAddressBarEditable) {
+                    disableAddressBarEdit();
+                }
+            }, 200);
+        });
+    }
 
     // Helper function to join paths properly
     function joinPath(base, name) {
@@ -51,11 +323,18 @@
                     ? message.path.slice(0, -1)
                     : message.path;
                 currentPathInput.value = currentPath;
+                updateAddressBar();
                 platform = message.platform;
                 saveState();
                 break;
             case 'updateSuggestions':
-                updateSuggestions(message.suggestions);
+                // Check if this is for address bar dropdown or path input
+                if (currentDropdownPath && message.suggestions) {
+                    showAddressSuggestions(currentDropdownPath, message.suggestions);
+                    currentDropdownPath = '';
+                } else {
+                    updateSuggestions(message.suggestions);
+                }
                 break;
             case 'updateSearchResults':
                 updateFileView(message.results);
@@ -924,6 +1203,7 @@
         // Update currentPath immediately to prevent race conditions
         currentPath = path;
         currentPathInput.value = currentPath;
+        updateAddressBar();
 
         vscode.postMessage({ command: 'loadDirectory', path: path });
     });
@@ -954,6 +1234,7 @@
         // Update currentPath immediately to prevent race conditions
         currentPath = parentPath;
         currentPathInput.value = currentPath;
+        updateAddressBar();
 
         vscode.postMessage({ command: 'loadDirectory', path: parentPath });
     });

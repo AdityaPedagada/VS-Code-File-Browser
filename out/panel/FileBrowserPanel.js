@@ -168,7 +168,14 @@ class FileBrowserPanel {
         <body>
             <div id="toolbar">
                 <button id="back-button" class="codicon codicon-arrow-left"></button>
-                <input type="text" id="current-path" placeholder="Enter path...">
+                <div id="address-bar-container">
+                    <button id="address-edit-btn" class="codicon codicon-edit" title="Edit address"></button>
+                    <div id="address-bar" class="address-bar">
+                        <span class="address-path"></span>
+                    </div>
+                    <input type="text" id="current-path" placeholder="Enter path..." style="display: none;">
+                    <button id="address-close-btn" class="codicon codicon-close" title="Close edit" style="display: none;"></button>
+                </div>
                 <button id="go-button">Go</button>
                 <input type="text" id="search-box" placeholder="Search files...">
                 <button id="global-search" class="codicon codicon-search" title="Global Search (recursive)"></button>

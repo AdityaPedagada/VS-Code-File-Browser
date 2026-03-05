@@ -25,6 +25,160 @@ body {
     padding: 5px;
 }
 
+/* Address Bar */
+#address-bar-container {
+    flex: 1 1 0;
+    margin-right: 10px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 150px;
+}
+
+.address-bar {
+    width: 100%;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 5px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar but allow scrolling */
+.address-bar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.address-bar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.address-bar::-webkit-scrollbar-thumb {
+    background-color: var(--vscode-scrollbarSlider-background);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+/* Firefox */
+.address-bar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
+}
+
+.address-path {
+    display: flex;
+    align-items: center;
+}
+
+.address-folder {
+    display: flex;
+    align-items: center;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: 3px;
+    color: var(--vscode-foreground);
+    background: transparent;
+    white-space: nowrap;
+}
+
+.address-folder:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.address-folder.current {
+    font-weight: bold;
+}
+
+.address-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px;
+    margin: 0 1px;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    border-radius: 3px;
+    min-width: 16px;
+    min-height: 20px;
+}
+
+.address-separator:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+/* Address edit and close buttons */
+#address-edit-btn,
+#address-close-btn {
+    flex-shrink: 0;
+    padding: 2px 4px;
+    margin-right: 4px;
+}
+
+#address-bar-container {
+    display: flex;
+    align-items: center;
+}
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    border-radius: 3px;
+    color: var(--vscode-descriptionForeground);
+    margin: 0 2px;
+}
+
+.address-dropdown:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.address-dropdown::before {
+    content: ">";
+    font-size: 10px;
+}
+
+/* Address bar suggestions dropdown */
+.address-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+    display: none;
+}
+
+.address-suggestions.show {
+    display: block;
+}
+
+.address-suggestion {
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.address-suggestion:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.address-suggestion .codicon {
+    font-size: 14px;
+}
+
 button {
     background-color: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
