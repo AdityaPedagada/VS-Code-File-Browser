@@ -258,8 +258,8 @@ class FileBrowserPanel {
     }
     _resolvePath(inputPath) {
         var _a, _b, _c, _d;
-        // Handle root path on Windows - return empty string to signal drives view
-        if (inputPath === '/' || inputPath === '\\') {
+        // Handle root path on Windows only - return signal for drives view
+        if (process.platform === 'win32' && (inputPath === '/' || inputPath === '\\')) {
             return '__DRIVES__';
         }
         // Handle Windows drive letter without trailing separator
