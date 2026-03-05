@@ -54,18 +54,45 @@
         const sep = path.includes('\\') ? '\\' : '/';
         pathSeparator = sep;
 
+        // Handle root path - show drives
+        if (path === '/' || path === '\\') {
+            addressBar.innerHTML = '';
+            addressBar.className = 'address-bar';
+
+            const rootSpan = document.createElement('span');
+            rootSpan.className = 'address-folder current';
+            rootSpan.textContent = sep === '\\' ? 'Drives' : '/';
+            rootSpan.title = 'Click to select drive';
+            rootSpan.dataset.path = sep;
+            rootSpan.addEventListener('click', () => {
+                navigateToAddress(sep);
+            });
+            addressBar.appendChild(rootSpan);
+
+            // Add some padding/height to make it visible
+            addressBar.style.justifyContent = 'center';
+            return;
+        }
+
+        // Normalize path - remove trailing separator
+        let normalizedPath = path;
+        if (path.endsWith(sep) && path.length > 1) {
+            normalizedPath = path.slice(0, -1);
+        }
+
         // Split path into parts
-        let parts = path.split(/[/\\]/).filter(p => p);
+        let parts = normalizedPath.split(/[/\\]/).filter(p => p);
 
         addressBar.innerHTML = '';
         addressBar.className = 'address-bar';
+        addressBar.style.justifyContent = 'flex-start';
 
         // Handle Windows drive letter
         let driveLetter = '';
-        if (path.match(/^[a-zA-Z]:/)) {
-            driveLetter = path.substring(0, 2);
+        if (normalizedPath.match(/^[a-zA-Z]:/)) {
+            driveLetter = normalizedPath.substring(0, 2);
             // Remove drive letter from parts
-            parts = path.substring(2).split(/[/\\]/).filter(p => p);
+            parts = normalizedPath.substring(2).split(/[/\\]/).filter(p => p);
         }
 
         // Build path so far
@@ -971,7 +998,12 @@
 
     function addFileEventListeners(fileElement, file) {
         // Use file.path if available (from search results), otherwise construct from currentPath
-        const filePath = file.path || joinPath(currentPath, file.name);
+        let filePath = file.path || joinPath(currentPath, file.name);
+
+        // Handle drive letter navigation - if at root and clicking a drive, use the drive letter directly
+        if ((currentPath === '/' || currentPath === '\\') && file.name.match(/^[A-Za-z]:$/)) {
+            filePath = file.name;
+        }
 
         fileElement.addEventListener('click', () => {
             if (file.isDirectory) {

@@ -2,7 +2,7 @@
     "name": "file-browser-extension",
     "displayName": "File Browser (In Main Window)",
     "description": "Browse files in grid format in main window",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "publisher":"adityapedagada",
     "license": "MIT",
     "icon": "media/file-browser-icon-128.png",
@@ -75,6 +75,7 @@
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src --ext ts",
         "test": "node ./out/test/runTest.js",
+        "build_vsix": "vsce package",
         "vscode:publish": "vsce publish --allow-missing-repository"
     },
     "devDependencies": {

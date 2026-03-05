@@ -33,6 +33,18 @@ body {
     display: flex;
     align-items: center;
     min-width: 150px;
+    height: 24px;
+}
+
+/* Address edit and close buttons - match toolbar button height */
+#address-edit-btn,
+#address-close-btn {
+    flex-shrink: 0;
+    padding: 3px 6px;
+    margin-right: 4px;
+    height: 22px;
+    min-height: 22px;
+    box-sizing: border-box;
 }
 
 .address-bar {
@@ -99,31 +111,21 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 4px;
+    padding: 0 2px;
     margin: 0 1px;
     color: var(--vscode-descriptionForeground);
     cursor: pointer;
-    border-radius: 3px;
-    min-width: 16px;
-    min-height: 20px;
+    border-radius: 2px;
+    min-width: 8px;
+    height: 22px;
+    line-height: 22px;
 }
 
 .address-separator:hover {
     background-color: var(--vscode-list-hoverBackground);
 }
 
-/* Address edit and close buttons */
-#address-edit-btn,
-#address-close-btn {
-    flex-shrink: 0;
-    padding: 2px 4px;
-    margin-right: 4px;
-}
-
-#address-bar-container {
-    display: flex;
-    align-items: center;
-}
+.address-dropdown {
     display: flex;
     align-items: center;
     justify-content: center;

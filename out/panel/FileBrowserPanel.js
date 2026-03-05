@@ -37,6 +37,7 @@ exports.FileBrowserPanel = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
 const FileService_1 = require("../services/FileService");
 const ClipboardService_1 = require("../services/ClipboardService");
@@ -231,8 +232,40 @@ class FileBrowserPanel {
         </html>`;
         });
     }
+    // Get list of Windows drives
+    _getWindowsDrives() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const drives = [];
+            const driveLetters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            for (const letter of driveLetters) {
+                const drivePath = `${letter}:\\`;
+                try {
+                    yield fs.promises.access(drivePath, fs.constants.R_OK);
+                    drives.push({
+                        name: `${letter}:`,
+                        isDirectory: true,
+                        lastModified: new Date().toISOString(),
+                        type: 'Drive',
+                        size: 0
+                    });
+                }
+                catch (_a) {
+                    // Drive doesn't exist or not accessible
+                }
+            }
+            return drives;
+        });
+    }
     _resolvePath(inputPath) {
         var _a, _b, _c, _d;
+        // Handle root path on Windows - return empty string to signal drives view
+        if (inputPath === '/' || inputPath === '\\') {
+            return '__DRIVES__';
+        }
+        // Handle Windows drive letter without trailing separator
+        if (inputPath.match(/^[a-zA-Z]:$/)) {
+            return inputPath + path.sep;
+        }
         if (path.isAbsolute(inputPath)) {
             return inputPath;
         }
@@ -246,6 +279,17 @@ class FileBrowserPanel {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const resolvedPath = this._resolvePath(directoryPath);
+                // Handle drives view on Windows
+                if (resolvedPath === '__DRIVES__' && process.platform === 'win32') {
+                    const drives = yield this._getWindowsDrives();
+                    this._panel.webview.postMessage({
+                        command: 'updateFiles',
+                        files: drives,
+                        path: '/',
+                        platform: process.platform
+                    });
+                    return;
+                }
                 const files = yield this.fileService.readDirectory(resolvedPath);
                 this._panel.webview.postMessage({
                     command: 'updateFiles',

@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
 import { exec } from 'child_process';
 import { FileService } from '../services/FileService';
 import { ClipboardService } from '../services/ClipboardService';
@@ -236,7 +237,39 @@ export class FileBrowserPanel {
         </html>`;
     }
 
+    // Get list of Windows drives
+    private async _getWindowsDrives(): Promise<FileInfo[]> {
+        const drives: FileInfo[] = [];
+        const driveLetters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+        for (const letter of driveLetters) {
+            const drivePath = `${letter}:\\`;
+            try {
+                await fs.promises.access(drivePath, fs.constants.R_OK);
+                drives.push({
+                    name: `${letter}:`,
+                    isDirectory: true,
+                    lastModified: new Date().toISOString(),
+                    type: 'Drive',
+                    size: 0
+                });
+            } catch {
+                // Drive doesn't exist or not accessible
+            }
+        }
+
+        return drives;
+    }
+
     private _resolvePath(inputPath: string): string {
+        // Handle root path on Windows - return empty string to signal drives view
+        if (inputPath === '/' || inputPath === '\\') {
+            return '__DRIVES__';
+        }
+        // Handle Windows drive letter without trailing separator
+        if (inputPath.match(/^[a-zA-Z]:$/)) {
+            return inputPath + path.sep;
+        }
         if (path.isAbsolute(inputPath)) {
             return inputPath;
         }
@@ -250,6 +283,19 @@ export class FileBrowserPanel {
     private async _loadDirectory(directoryPath: string): Promise<void> {
         try {
             const resolvedPath = this._resolvePath(directoryPath);
+
+            // Handle drives view on Windows
+            if (resolvedPath === '__DRIVES__' && process.platform === 'win32') {
+                const drives = await this._getWindowsDrives();
+                this._panel.webview.postMessage({
+                    command: 'updateFiles',
+                    files: drives,
+                    path: '/',
+                    platform: process.platform
+                });
+                return;
+            }
+
             const files = await this.fileService.readDirectory(resolvedPath);
             this._panel.webview.postMessage({
                 command: 'updateFiles',
