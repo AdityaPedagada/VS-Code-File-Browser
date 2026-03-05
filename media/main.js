@@ -51,7 +51,17 @@
         if (!addressBar) return;
 
         const path = currentPath;
-        const sep = path.includes('\\') ? '\\' : '/';
+        // Use pathSeparator if already set, otherwise detect from path
+        let sep = pathSeparator;
+        if (!sep) {
+            sep = path.includes('\\') ? '\\' : '/';
+        }
+        // Normalize the current path to use the correct separator
+        const wrongSep = sep === '\\' ? '/' : '\\';
+        if (path.includes(wrongSep)) {
+            currentPath = path.split(wrongSep).join(sep);
+            pathSeparator = sep;
+        }
         pathSeparator = sep;
 
         // Handle root path - show drives
@@ -62,12 +72,23 @@
             const rootSpan = document.createElement('span');
             rootSpan.className = 'address-folder current';
             rootSpan.textContent = sep === '\\' ? 'Drives' : '/';
-            rootSpan.title = 'Click to select drive';
-            rootSpan.dataset.path = sep;
+            rootSpan.title = 'Click to open root';
+
+            // Add click to navigate
             rootSpan.addEventListener('click', () => {
                 navigateToAddress(sep);
             });
             addressBar.appendChild(rootSpan);
+
+            // Add dropdown for root folder contents
+            const dropdownSpan = document.createElement('span');
+            dropdownSpan.className = 'address-dropdown';
+            dropdownSpan.title = 'Show root contents';
+            dropdownSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showAddressDropdown(dropdownSpan, sep);
+            });
+            rootSpan.appendChild(dropdownSpan);
 
             // Add some padding/height to make it visible
             addressBar.style.justifyContent = 'center';
@@ -140,7 +161,14 @@
         // Add each folder
         parts.forEach((part, index) => {
             // Build full path to this folder - capture in local variable for closure
-            const currentPathSoFar = pathSoFar ? joinPath(pathSoFar, part) : part;
+            // Always use joinPath to ensure proper separator
+            let currentPathSoFar;
+            if (index === 0 && !driveLetter) {
+                // First folder on non-Windows needs leading separator
+                currentPathSoFar = sep + part;
+            } else {
+                currentPathSoFar = pathSoFar ? joinPath(pathSoFar, part) : part;
+            }
             pathSoFar = currentPathSoFar;
 
             // Create folder span
@@ -165,14 +193,13 @@
                 const sepSpan = document.createElement('span');
                 sepSpan.className = 'address-separator';
                 sepSpan.textContent = sep;
-                // Separator path is current folder + separator (for dropdown)
-                const separatorPath = currentPathSoFar + sep;
-                sepSpan.dataset.path = separatorPath;
+                // Separator path is current folder path (will add separator in dropdown function)
+                sepSpan.dataset.path = currentPathSoFar;
                 sepSpan.title = 'Click to see folders in: ' + currentPathSoFar;
                 // Click on separator shows dropdown for folders inside current folder
                 sepSpan.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    showAddressDropdown(sepSpan, separatorPath);
+                    showAddressDropdown(sepSpan, currentPathSoFar);
                 });
                 addressBar.appendChild(sepSpan);
             }
@@ -197,9 +224,15 @@
         // Close any existing dropdown
         closeAddressSuggestions();
 
+        // Ensure path has proper separator for backend
+        let searchPath = folderPath;
+        if (!searchPath.endsWith(pathSeparator)) {
+            searchPath = searchPath + pathSeparator;
+        }
+
         // Request subfolders from backend
         currentDropdownPath = folderPath;
-        vscode.postMessage({ command: 'getDirectorySuggestions', path: folderPath + pathSeparator });
+        vscode.postMessage({ command: 'getDirectorySuggestions', path: searchPath });
     }
 
     // Close address suggestions dropdown
@@ -344,11 +377,32 @@
             case 'updateFiles':
                 allFiles = message.files;
                 updateFileView(message.files);
-                // Normalize path - remove trailing separator for consistency
-                const sep = message.path.includes('\\') ? '\\' : '/';
-                currentPath = message.path.endsWith(sep) && message.path.length > 1
-                    ? message.path.slice(0, -1)
-                    : message.path;
+
+                // Determine the expected separator - prefer current, otherwise detect from message
+                let expectedSep = pathSeparator;
+                if (!expectedSep || currentPath === '') {
+                    // First load or no separator yet - detect from platform
+                    const isWindows = message.platform === 'win32';
+                    expectedSep = isWindows ? '\\' : '/';
+                }
+
+                // Normalize the path to use the expected separator
+                let newPath = message.path;
+                const wrongSep = expectedSep === '\\' ? '/' : '\\';
+
+                // Replace wrong separators
+                if (newPath.includes(wrongSep)) {
+                    newPath = newPath.split(wrongSep).join(expectedSep);
+                }
+
+                // Remove trailing separator if present
+                if (newPath.endsWith(expectedSep) && newPath.length > 1) {
+                    newPath = newPath.slice(0, -1);
+                }
+
+                // Update pathSeparator to match what we're using
+                pathSeparator = expectedSep;
+                currentPath = newPath;
                 currentPathInput.value = currentPath;
                 updateAddressBar();
                 platform = message.platform;
